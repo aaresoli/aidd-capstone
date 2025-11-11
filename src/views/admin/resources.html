@@ -1,0 +1,91 @@
+{% extends "layout.html" %}
+{% block title %}Manage Resources{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Manage Resources</h1>
+    <ul class="nav nav-pills mb-3">
+        <li class="nav-item">
+            <a class="nav-link {% if not selected_status %}active{% endif %}" href="{{ url_for('admin.manage_resources') }}">All</a>
+        </li>
+        {% for status in valid_statuses %}
+        <li class="nav-item">
+            <a class="nav-link {% if selected_status == status %}active{% endif %}" href="{{ url_for('admin.manage_resources', status=status) }}">{{ status.title() }}</a>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <div class="dashboard-card">
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Owner</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Restricted</th>
+                        <th>Created</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if resources %}
+                        {% for resource in resources %}
+                        <tr>
+                            <td>
+                                <strong>{{ resource.title }}</strong><br>
+                                <small class="text-muted">{{ resource.location }}</small>
+                            </td>
+                            <td>
+                                {% set owner = owners.get(resource.owner_id) %}
+                                {% if owner %}
+                                    {{ owner.name }}<br>
+                                    <small class="text-muted">{{ owner.email }}</small>
+                                {% else %}
+                                    User #{{ resource.owner_id }}
+                                {% endif %}
+                            </td>
+                            <td>{{ resource.category or '—' }}</td>
+                            <td>
+                                <span class="badge {% if resource.status == 'published' %}bg-success{% elif resource.status == 'draft' %}bg-secondary{% else %}bg-warning text-dark{% endif %}">{{ resource.status|title }}</span>
+                            </td>
+                            <td>
+                                {% if resource.is_restricted %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Yes</span>
+                                {% else %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">No</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ resource.created_at|datetime_format }}</td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-2">
+                                    <a href="{{ url_for('resource.detail', resource_id=resource.resource_id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                    <form method="POST" action="{{ url_for('admin.update_resource_status', resource_id=resource.resource_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="return_status" value="{{ selected_status or '' }}">
+                                        <div class="input-group input-group-sm">
+                                            <select class="form-select" name="status">
+                                                {% for status in valid_statuses %}
+                                                <option value="{{ status }}" {% if resource.status == status %}selected{% endif %}>{{ status.title() }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            <button class="btn btn-primary" type="submit">Update</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">No resources found for this filter.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

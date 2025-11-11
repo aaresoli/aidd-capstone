@@ -1,0 +1,150 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<section class="hero">
+    <div class="container">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-6">
+                <p class="hero-kicker text-uppercase mb-2">Indiana University Bloomington</p>
+                <h1 class="display-5 fw-semibold mb-3">Reserve the rooms, labs, and stages you need—without the back-and-forth.</h1>
+                <p class="lead text-muted mb-4">
+                    Search live availability, request restricted spaces, and keep conversations and approvals in one clean workspace.
+                </p>
+                <ul class="hero-highlights list-unstyled mb-4">
+                    <li><i class="bi bi-check-circle"></i> Smart conflict detection and reminders</li>
+                    <li><i class="bi bi-people"></i> Role-aware workflows for students, staff, and admins</li>
+                    <li><i class="bi bi-chat-dots"></i> Built-in messaging for quick clarifications</li>
+                </ul>
+                <div class="hero-actions d-flex flex-wrap gap-3 mb-4">
+                    <a href="{{ url_for('resource.list_resources') }}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-search"></i> Start exploring
+                    </a>
+                    {% if not current_user.is_authenticated %}
+                        <a href="{{ url_for('auth.register') }}" class="btn btn-outline-secondary btn-lg">
+                            Create free account
+                        </a>
+                    {% elif current_user.role in ['admin', 'staff'] %}
+                        <a href="{{ url_for('resource.create') }}" class="btn btn-outline-secondary btn-lg">
+                            List a resource
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="hero-illustration">
+                    <div class="hero-panel">
+                        <div class="hero-panel__row">
+                            <span class="hero-tag">Wells Library</span>
+                            <span class="hero-status text-success"><i class="bi bi-circle-fill"></i> Open now</span>
+                        </div>
+                        <div class="hero-panel__body">
+                            <h4>Team Suite 605</h4>
+                            <p class="text-muted mb-0">10 seats · Dual monitors · Zoom kit</p>
+                        </div>
+                        <div class="hero-panel__row">
+                            <span class="hero-chip">Student self-book</span>
+                            <span class="hero-chip hero-chip--outline">Max 2 hrs</span>
+                        </div>
+                    </div>
+                    <div class="hero-panel">
+                        <div class="hero-panel__row">
+                            <span class="hero-tag">Kelley School</span>
+                            <span class="hero-status text-warning"><i class="bi bi-circle-fill"></i> Needs approval</span>
+                        </div>
+                        <div class="hero-panel__body">
+                            <h4>Podcast Studio</h4>
+                            <p class="text-muted mb-0">4 seats · RodeCaster · 4K capture</p>
+                        </div>
+                        <div class="hero-panel__row">
+                            <span class="hero-chip">Staff review</span>
+                            <span class="hero-chip hero-chip--outline">Orientation required</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% if featured_resources %}
+<section class="featured-section py-5">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+            <div>
+                <p class="text-uppercase small text-muted mb-1">IU Bloomington favorites</p>
+                <h2 class="mb-0">Popular this week</h2>
+            </div>
+            <a href="{{ url_for('resource.list_resources') }}" class="btn btn-outline-secondary">View all resources</a>
+        </div>
+        <div class="row g-4">
+            {% for item in featured_resources %}
+            <div class="col-md-4">
+                <div class="resource-card h-100">
+                    {% if item.resource.images %}
+                        {% set first_image = item.resource.images.split(',')[0].strip() %}
+                        {% if first_image %}
+                            {% if first_image.startswith('http') %}
+                                {% set image_src = first_image %}
+                            {% else %}
+                                {% set image_src = url_for('static', filename='uploads/' + first_image) %}
+                            {% endif %}
+                            <div class="resource-image" style="background-image: url('{{ image_src }}');"></div>
+                        {% else %}
+                            <div class="resource-image resource-placeholder">
+                                <i class="bi bi-building"></i>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="resource-image resource-placeholder">
+                            <i class="bi bi-building"></i>
+                        </div>
+                    {% endif %}
+                    <div class="resource-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h5 class="mb-1">{{ item.resource.title }}</h5>
+                                <span class="badge bg-light text-dark"><i class="bi bi-geo-alt"></i> {{ item.resource.location }}</span>
+                            </div>
+                            {% if item.avg_rating > 0 %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-star-fill"></i> {{ item.avg_rating }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <p class="text-muted small mb-2">
+                            <i class="bi bi-tag"></i> {{ item.resource.category }}
+                            {% if item.is_top_rated %}
+                                <span class="badge bg-success-subtle text-success ms-2"><i class="bi bi-award"></i> Top rated</span>
+                            {% endif %}
+                        </p>
+                        <p class="resource-description">{{ item.resource.description[:120] }}{% if item.resource.description|length > 120 %}...{% endif %}</p>
+                        <a href="{{ url_for('resource.detail', resource_id=item.resource.resource_id) }}" class="btn btn-sm btn-primary w-100">
+                            View details
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<section class="cta-section py-5">
+    <div class="container">
+        <div class="cta-card text-center">
+            <p class="text-uppercase small text-muted mb-2">Need a recommendation?</p>
+            <h2 class="mb-3">Share your event, class, or project—we'll point you to the perfect space.</h2>
+            <p class="text-muted mb-4">Message facility teams directly or browse curated favorites to get moving in minutes.</p>
+            <div class="d-flex justify-content-center gap-3 flex-wrap">
+                <a href="{{ url_for('resource.list_resources') }}" class="btn btn-primary btn-lg">Browse resources</a>
+                {% if current_user.is_authenticated and current_user.role in ['admin', 'staff'] %}
+                <a href="{{ url_for('resource.create') }}" class="btn btn-outline-secondary btn-lg">Add your space</a>
+                {% elif not current_user.is_authenticated %}
+                <a href="{{ url_for('auth.register') }}" class="btn btn-outline-secondary btn-lg">Create account</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,249 @@
+{% extends "layout.html" %}
+{% block title %}Browse Resources{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <header class="mb-4">
+        <p class="eyebrow text-uppercase text-muted mb-1">Resource Hub</p>
+        <h1 class="mb-2">Find the right resource</h1>
+        <p class="text-muted mb-0">Explore study rooms, equipment, and creative spaces around campus. Filter by what matters and hold a slot that matches your schedule.</p>
+    </header>
+
+    <section class="dashboard-card mb-3" aria-labelledby="filters-heading">
+        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+            <h2 class="h5 mb-0" id="filters-heading">Search &amp; filters</h2>
+            <p class="text-muted small mb-0">{{ filter_summary }}</p>
+        </div>
+        <form method="GET" action="{{ url_for('resource.list_resources') }}" class="row g-3" novalidate>
+            <input type="hidden" name="page" value="1">
+            <div class="col-md-4">
+                <label for="keyword" class="form-label">Keyword</label>
+                <input type="search" id="keyword" name="keyword" class="form-control" placeholder="Title, equipment, etc." value="{{ selected_keyword }}">
+            </div>
+            <div class="col-md-4 col-lg-3">
+                <label for="category" class="form-label">Category</label>
+                <select id="category" name="category" class="form-select">
+                    <option value="">All categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if cat == selected_category %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 col-lg-3">
+                <label for="location" class="form-label">Location</label>
+                <input type="text" id="location" name="location" class="form-control" placeholder="Building or campus" value="{{ selected_location }}">
+            </div>
+            <div class="col-md-4 col-lg-2">
+                <label for="min_capacity" class="form-label">Min capacity</label>
+                <input type="number" id="min_capacity" name="min_capacity" class="form-control" min="1" placeholder="Optional" value="{{ selected_min_capacity }}">
+            </div>
+            <div class="col-md-4">
+                <label for="available_from" class="form-label">Available from</label>
+                <input type="datetime-local" id="available_from" name="available_from" class="form-control" value="{{ selected_available_from }}">
+            </div>
+            <div class="col-md-4">
+                <label for="available_until" class="form-label">Available until</label>
+                <input type="datetime-local" id="available_until" name="available_until" class="form-control" value="{{ selected_available_until }}">
+            </div>
+            <div class="col-md-4 col-lg-3">
+                <label for="sort" class="form-label">Sort by</label>
+                <select id="sort" name="sort" class="form-select">
+                    {% for value, label in sort_options.items() %}
+                    <option value="{{ value }}" {% if value == selected_sort %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-8 col-lg-4 ms-auto d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1" aria-label="Run resource search">
+                    <i class="bi bi-search"></i> Search
+                </button>
+                <a href="{{ url_for('resource.list_resources') }}" class="btn btn-outline-secondary" aria-label="Reset filters">
+                    Reset
+                </a>
+            </div>
+        </form>
+        {% if applied_filters %}
+        <div class="filter-chip-group mt-3" role="list">
+            {% for chip in applied_filters %}
+            <a href="{{ chip.remove_url }}" class="filter-chip" role="listitem" aria-label="Remove filter {{ chip.label }}">
+                {{ chip.label }}
+                <span aria-hidden="true">&times;</span>
+            </a>
+            {% endfor %}
+            <a href="{{ url_for('resource.list_resources') }}" class="filter-chip text-danger" role="listitem">
+                Clear all
+                <span aria-hidden="true">&times;</span>
+            </a>
+        </div>
+        {% endif %}
+    </section>
+
+    <section aria-labelledby="results-heading">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+            <h2 class="h5 mb-0" id="results-heading">Browse results</h2>
+            <span class="text-muted small">{{ total_results }} results</span>
+        </div>
+        <div class="row g-4">
+            {% for item in resources %}
+            {% set resource = item.resource %}
+            <article class="col-md-6 col-xl-4">
+                <div class="resource-card h-100 d-flex flex-column">
+                    {% if resource.images %}
+                    {% set first_image = resource.images.split(',')[0].strip() %}
+                    {% if first_image %}
+                    {% if first_image.startswith('http') %}
+                    {% set card_image = first_image %}
+                    {% else %}
+                    {% set card_image = url_for('static', filename='uploads/' + first_image) %}
+                    {% endif %}
+                    <div class="resource-image" style="background-image: url('{{ card_image }}');" role="img" aria-label="Photo of {{ resource.title }}"></div>
+                    {% else %}
+                    <div class="resource-image resource-placeholder" aria-hidden="true"><i class="bi bi-building"></i></div>
+                    {% endif %}
+                    {% else %}
+                    <div class="resource-image resource-placeholder" aria-hidden="true"><i class="bi bi-building"></i></div>
+                    {% endif %}
+                    <div class="resource-body flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <p class="text-uppercase text-muted small mb-1">{{ resource.category }}</p>
+                                <h3 class="h5 mb-0">{{ resource.title }}</h3>
+                            </div>
+                            <div class="d-flex flex-column align-items-end gap-1">
+                                {% if item.avg_rating > 0 %}
+                                <span class="badge bg-warning-subtle text-dark">
+                                    <i class="bi bi-star-fill text-warning" aria-hidden="true"></i>
+                                    {{ item.avg_rating }} · {{ item.total_reviews }} reviews
+                                </span>
+                                {% endif %}
+                                {% if item.availability_status %}
+                                {% set badge_tone = {
+                                    'success': 'bg-success-subtle text-success border border-success-subtle',
+                                    'info': 'bg-info-subtle text-info border border-info-subtle',
+                                    'warning': 'bg-warning-subtle text-warning border border-warning-subtle'
+                                } %}
+                                <span class="badge {{ badge_tone[item.availability_badge or 'info'] }}">
+                                    {{ item.availability_status }}
+                                </span>
+                                {% endif %}
+                                {% if resource.is_restricted %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Restricted</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <p class="text-muted small mb-2">
+                            <i class="bi bi-geo-alt"></i> {{ resource.location or 'Location TBD' }}
+                            {% if resource.capacity %}
+                            <span class="ms-3"><i class="bi bi-people"></i> {{ resource.capacity }} seats</span>
+                            {% endif %}
+                        </p>
+                        {% if resource.equipment %}
+                        {% set amenities = resource.equipment.split(',') %}
+                        <p class="text-muted small mb-2">
+                            <i class="bi bi-tools"></i>
+                            {% for amenity in amenities[:3] %}
+                                {{ amenity.strip() }}{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                            {% if amenities|length > 3 %}
+                                &nbsp;+{{ amenities|length - 3 }} more
+                            {% endif %}
+                        </p>
+                        {% endif %}
+                        <p class="resource-description text-muted">{{ resource.description|default('No description provided.')|truncate(140) }}</p>
+                        {% if item.next_available %}
+                        <p class="text-success small fw-semibold mb-2">
+                            <i class="bi bi-clock"></i> Next available: {{ item.next_available }}
+                        </p>
+                        {% endif %}
+                        {% if not item.can_access %}
+                        <p class="text-muted small mb-0">
+                            {{ item.restriction_note or 'Available to authorized programs only.' }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="mt-3">
+                        {% if item.can_access %}
+                        <a href="{{ url_for('resource.detail', resource_id=resource.resource_id) }}" class="btn btn-outline-primary w-100" aria-label="View details for {{ resource.title }}">
+                            View details
+                        </a>
+                        {% else %}
+                        <button type="button"
+                                class="btn btn-outline-secondary w-100"
+                                data-bs-toggle="modal"
+                                data-bs-target="#restricted-modal-{{ resource.resource_id }}">
+                            Request access
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if resource.is_restricted and not item.can_access %}
+                <div class="modal fade" id="restricted-modal-{{ resource.resource_id }}" tabindex="-1"
+                     aria-labelledby="restricted-modal-label-{{ resource.resource_id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="restricted-modal-label-{{ resource.resource_id }}">{{ resource.title }} access</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted mb-3">
+                                    {{ item.restriction_note or 'This resource is limited to approved programs. Request access from the owner or a staff member.' }}
+                                </p>
+                                <ul class="list-unstyled small text-muted mb-3">
+                                    <li><i class="bi bi-geo-alt"></i> {{ resource.location or 'Location TBD' }}</li>
+                                    {% if resource.capacity %}
+                                    <li><i class="bi bi-people"></i> Capacity {{ resource.capacity }}</li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                                {% if current_user.is_authenticated and resource.owner_id %}
+                                <a href="{{ url_for('message.send', receiver_id=resource.owner_id, resource_id=resource.resource_id) }}"
+                                   class="btn btn-primary">
+                                    Message owner
+                                </a>
+                                {% else %}
+                                <a href="{{ url_for('auth.login', next=url_for('resource.detail', resource_id=resource.resource_id)) }}"
+                                   class="btn btn-primary">
+                                    Sign in to request
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </article>
+            {% else %}
+            <div class="col-12">
+                <div class="alert alert-info text-center">
+                    <i class="bi bi-info-circle"></i> No resources match your filters. Try broadening the search or <a href="{{ url_for('resource.list_resources') }}">reset filters</a>.
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% if pagination.total_pages > 1 %}
+    <nav class="mt-4" aria-label="Resource pagination">
+        <ul class="pagination justify-content-center flex-wrap gap-1">
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{{ pagination.prev_url if pagination.has_prev else '#' }}" aria-label="Previous page">
+                    Previous
+                </a>
+            </li>
+            {% for page_link in pagination.pages %}
+            <li class="page-item {% if page_link.is_active %}active{% endif %}">
+                <a class="page-link" href="{{ page_link.url }}">{{ page_link.number }}</a>
+            </li>
+            {% endfor %}
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{{ pagination.next_url if pagination.has_next else '#' }}" aria-label="Next page">
+                    Next
+                </a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

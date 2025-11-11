@@ -1,0 +1,78 @@
+{% extends "layout.html" %}
+{% block title %}Create Resource{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="dashboard-card">
+                <h2 class="mb-4">Create New Resource</h2>
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title *</label>
+                        <input type="text" class="form-control" id="title" name="title"
+                               value="{{ form_data.get('title', '') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description *</label>
+                        <textarea class="form-control" id="description" name="description" rows="5" required>{{ form_data.get('description', '') }}</textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="category" class="form-label">Category *</label>
+                            <select class="form-select" id="category" name="category" required>
+                                {% for cat in categories %}
+                                <option value="{{ cat }}" {% if form_data.get('category') == cat %}selected{% endif %}>{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="location" class="form-label">Location *</label>
+                            <input type="text" class="form-control" id="location" name="location"
+                                   value="{{ form_data.get('location', '') }}" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="capacity" class="form-label">Capacity (optional)</label>
+                        <input type="number" class="form-control" id="capacity" name="capacity" min="1"
+                               value="{{ form_data.get('capacity', '') }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="equipment" class="form-label">Equipment List (optional)</label>
+                        <textarea class="form-control" id="equipment" name="equipment" rows="3"
+                                  placeholder="Projector, Whiteboard, HDMI cables">{{ form_data.get('equipment', '') }}</textarea>
+                        <small class="text-muted">Separate items with commas or new lines.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="availability_rules" class="form-label">Availability Rules (optional)</label>
+                        <textarea class="form-control" id="availability_rules" name="availability_rules" rows="3"
+                                  placeholder="Weekdays 9AM-5PM, closed on holidays">{{ form_data.get('availability_rules', '') }}</textarea>
+                        <small class="text-muted">Describe when this resource can typically be booked.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="images" class="form-label">Images</label>
+                        <input type="file" class="form-control" id="images" name="images" multiple accept="image/*">
+                        <div id="image-preview" class="image-preview"></div>
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" id="is_restricted" name="is_restricted"
+                               {% if form_data.get('is_restricted') %}checked{% endif %}>
+                        <label class="form-check-label" for="is_restricted">Requires owner approval (restricted resource)</label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="draft" {% if form_data.get('status', 'draft') == 'draft' %}selected{% endif %}>Draft</option>
+                            <option value="published" {% if form_data.get('status') == 'published' %}selected{% endif %}>Published</option>
+                        </select>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Create Resource</button>
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

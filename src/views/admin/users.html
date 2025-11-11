@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+{% block title %}Manage Users{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Manage Users</h1>
+    <div class="dashboard-card">
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Department</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if users %}
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.name }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>{{ user.role|title }}</td>
+                            <td>{{ user.department or '—' }}</td>
+                            <td>
+                                {% if user.is_suspended %}
+                                <span class="badge bg-danger-subtle text-danger">Suspended</span>
+                                {% else %}
+                                <span class="badge bg-success-subtle text-success">Active</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-2">
+                                    <form method="POST" action="{{ url_for('admin.toggle_user_suspension', user_id=user.user_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        {% if user.is_suspended %}
+                                        <input type="hidden" name="action" value="reinstate">
+                                        <button class="btn btn-sm btn-success" type="submit">
+                                            <i class="bi bi-person-check"></i> Reinstate
+                                        </button>
+                                        {% else %}
+                                        <input type="hidden" name="action" value="suspend">
+                                        <button class="btn btn-sm btn-warning" type="submit" onclick="return confirm('Suspend this user?');">
+                                            <i class="bi bi-pause-circle"></i> Suspend
+                                        </button>
+                                        {% endif %}
+                                    </form>
+                                    <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.user_id) }}" onsubmit="return confirm('Delete this user?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">No users found.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

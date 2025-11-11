@@ -1,0 +1,154 @@
+{% extends "layout.html" %}
+{% block title %}Booking #{{ booking.booking_id }}{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="dashboard-card">
+                <h2 class="mb-4">Booking Details</h2>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Booking ID:</strong> #{{ booking.booking_id }}
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <strong>Status:</strong>
+                        <span class="badge status-{{ booking.status }}">{{ booking.status|upper }}</span>
+                    </div>
+                </div>
+                <hr>
+                <h5 class="mb-3">Resource Information</h5>
+                <p><strong>Resource:</strong> {{ booking.resource_title }}</p>
+                <p><strong>Location:</strong> {{ booking.location }}</p>
+                <p><strong>Category:</strong> {{ booking.category }}</p>
+                <div class="mb-3">
+                    <a href="{{ url_for('resource.detail', resource_id=booking.resource_id) }}" class="btn btn-sm btn-outline-primary">
+                        View Resource
+                    </a>
+                </div>
+                <hr>
+                <h5 class="mb-3">Booking Schedule</h5>
+                <p><strong>Start:</strong> {{ booking.start_datetime|datetime_format }}</p>
+                <p><strong>End:</strong> {{ booking.end_datetime|datetime_format }}</p>
+                {% if recurrence_summary %}
+                <p><strong>Recurrence:</strong> {{ recurrence_summary }}</p>
+                {% endif %}
+                <div class="calendar-options mt-3">
+                    <h5 class="h6 text-uppercase text-muted mb-2">Calendar Options</h5>
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                        {% if google_connection %}
+                        <form method="POST" action="{{ url_for('calendar.sync_booking', booking_id=booking.booking_id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-outline-primary btn-sm">
+                                {% if calendar_event %}
+                                <i class="bi bi-arrow-repeat"></i> Resync Google Calendar
+                                {% else %}
+                                <i class="bi bi-cloud-upload"></i> Sync to Google Calendar
+                                {% endif %}
+                            </button>
+                        </form>
+                        {% else %}
+                        <a href="{{ url_for('calendar.google_connect', next=url_for('booking.detail', booking_id=booking.booking_id)) }}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-google"></i> Connect Google Calendar
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('calendar.export_booking_ics', booking_id=booking.booking_id) }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-download"></i> Download iCal
+                        </a>
+                        {% if calendar_event and calendar_event.html_link %}
+                        <a href="{{ calendar_event.html_link }}" target="_blank" rel="noopener" class="btn btn-link btn-sm">
+                            View Google event
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% if calendar_event %}
+                    <p class="text-muted small mt-2">Last synced {{ calendar_event.synced_at|datetime_format('%b %d, %Y %I:%M %p') }}.</p>
+                    {% elif google_connection %}
+                    <p class="text-muted small mt-2">Connected! Sync this booking to create the event.</p>
+                    {% else %}
+                    <p class="text-muted small mt-2">Connect Google Calendar to push this reservation automatically.</p>
+                    {% endif %}
+                </div>
+                <hr>
+                <h5 class="mb-3">Requester Information</h5>
+                <p><strong>Name:</strong> {{ booking.requester_name }}</p>
+                <p><strong>Email:</strong> {{ booking.requester_email }}</p>
+                <hr>
+                {% if booking.decision_notes %}
+                <div class="alert alert-secondary">
+                    <strong>Reviewer notes:</strong>
+                    <div class="mb-1">{{ booking.decision_notes }}</div>
+                    {% if booking.decision_by_name %}
+                    <div class="small text-muted">
+                        Provided by {{ booking.decision_by_name }}{% if booking.decision_timestamp %} on {{ booking.decision_timestamp|datetime_format }}{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% if booking.status == 'pending' %}
+                <div class="alert alert-info">
+                    <i class="bi bi-hourglass-split"></i>
+                    Awaiting approval from the resource owner or an administrator.
+                </div>
+                {% endif %}
+                <div class="d-flex gap-2 flex-wrap mt-3">
+                    {% if current_user.user_id == booking.requester_id and current_user.user_id != booking.owner_id %}
+                    <a href="{{ url_for('message.send', receiver_id=booking.owner_id, resource_id=booking.resource_id) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-chat-dots"></i> Message Owner
+                    </a>
+                    {% elif current_user.user_id == booking.owner_id %}
+                    <a href="{{ url_for('message.send', receiver_id=booking.requester_id, resource_id=booking.resource_id) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-chat-dots"></i> Message Requester
+                    </a>
+                    {% endif %}
+                </div>
+                {% if booking.status == 'pending' and (current_user.user_id == booking.owner_id or current_user.role == 'admin') %}
+                <div class="d-flex gap-2 flex-wrap">
+                    <form method="POST" action="{{ url_for('booking.approve', booking_id=booking.booking_id) }}" class="approval-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <textarea class="form-control form-control-sm mb-2" name="decision_notes" rows="2" placeholder="Notes (optional)"></textarea>
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="bi bi-check-circle"></i> Approve
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('booking.reject', booking_id=booking.booking_id) }}" class="approval-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <textarea class="form-control form-control-sm mb-2" name="decision_notes" rows="2" placeholder="Notes (optional)"></textarea>
+                        <button type="submit" class="btn btn-danger w-100">
+                            <i class="bi bi-x-circle"></i> Reject
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+
+                {% if booking.status in ['pending', 'approved'] and current_user.user_id == booking.requester_id %}
+                <form method="POST" action="{{ url_for('booking.cancel', booking_id=booking.booking_id) }}" class="mt-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-warning" data-confirm-delete>
+                        <i class="bi bi-x-circle"></i> Cancel Booking
+                    </button>
+                </form>
+                {% endif %}
+
+                {% if can_mark_complete_owner or can_mark_complete_requester %}
+                <form method="POST" action="{{ url_for('booking.complete', booking_id=booking.booking_id) }}" class="mt-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-flag"></i>
+                        {% if can_mark_complete_owner and not can_mark_complete_requester %}
+                            Mark as Completed
+                        {% elif can_mark_complete_requester and not can_mark_complete_owner %}
+                            Confirm Completion
+                        {% else %}
+                            Mark as Completed
+                        {% endif %}
+                    </button>
+                </form>
+                {% elif booking.status == 'approved' %}
+                <p class="text-muted mt-3"><i class="bi bi-info-circle"></i> Completion will be available once the reservation has ended.</p>
+                {% endif %}
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary mt-3">Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

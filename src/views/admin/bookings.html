@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+{% block title %}Manage Bookings{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Manage Bookings</h1>
+    <ul class="nav nav-pills mb-3">
+        <li class="nav-item">
+            <a class="nav-link {% if not selected_status %}active{% endif %}" href="{{ url_for('admin.manage_bookings') }}">All</a>
+        </li>
+        {% for status in valid_statuses %}
+        <li class="nav-item">
+            <a class="nav-link {% if selected_status == status %}active{% endif %}" href="{{ url_for('admin.manage_bookings', status=status) }}">{{ status.title() }}</a>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <div class="dashboard-card">
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Resource</th>
+                        <th>Requester</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Status</th>
+                        <th>Review Notes</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if bookings %}
+                        {% for booking in bookings %}
+                        <tr>
+                            <td>#{{ booking.booking_id }}</td>
+                            <td>
+                                <strong>{{ booking.resource_title }}</strong><br>
+                                <small class="text-muted">{{ booking.category }}</small>
+                            </td>
+                            <td>
+                                {{ booking.requester_name }}<br>
+                                <small class="text-muted">{{ booking.requester_email }}</small>
+                            </td>
+                            <td>{{ booking.start_datetime|datetime_format }}</td>
+                            <td>{{ booking.end_datetime|datetime_format }}</td>
+                            <td>
+                                <span class="badge status-{{ booking.status }}">{{ booking.status|upper }}</span>
+                            </td>
+                            <td class="small">
+                                {% if booking.decision_notes %}
+                                <div>{{ booking.decision_notes }}</div>
+                                {% if booking.decision_by_name %}
+                                <div class="text-muted">by {{ booking.decision_by_name }}</div>
+                                {% endif %}
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="d-flex flex-column gap-2 align-items-end">
+                                    <a href="{{ url_for('booking.detail', booking_id=booking.booking_id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                    <form method="POST" action="{{ url_for('admin.admin_update_booking_status', booking_id=booking.booking_id) }}" class="w-100" style="max-width: 320px;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="return_status" value="{{ selected_status or '' }}">
+                                        <div class="input-group input-group-sm mb-2">
+                                            <select class="form-select" name="status">
+                                                {% for status in valid_statuses %}
+                                                <option value="{{ status }}" {% if booking.status == status %}selected{% endif %}>{{ status.title() }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            <button class="btn btn-primary" type="submit">Update</button>
+                                        </div>
+                                        <textarea name="decision_notes" class="form-control form-control-sm" rows="2" placeholder="Notes (optional)"></textarea>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">No bookings found for this filter.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends "layout.html" %}
+{% block title %}Moderation Queue{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Flagged Content</h1>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+    </div>
+
+    <div class="dashboard-card mb-4">
+        <div class="card-head">
+            <h3 class="h5 mb-0">Reviews</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Resource</th>
+                        <th>Reviewer</th>
+                        <th>Comment</th>
+                        <th>Reason</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if flagged_reviews %}
+                        {% for review in flagged_reviews %}
+                        <tr>
+                            <td>{{ review.resource_title }}</td>
+                            <td>{{ review.reviewer_name }}</td>
+                            <td style="max-width: 320px;">{{ review.comment or '—' }}</td>
+                            <td>
+                                <div>{{ review.flag_reason }}</div>
+                                <small class="text-muted">{{ review.flagged_at|datetime_format }}</small>
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <form method="POST" action="{{ url_for('admin.admin_hide_review', review_id=review.review_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="btn btn-warning" type="submit">Hide</button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('admin.admin_clear_review_flag', review_id=review.review_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="btn btn-outline-secondary" type="submit">Clear</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">No flagged reviews 🎉</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="dashboard-card">
+        <div class="card-head">
+            <h3 class="h5 mb-0">Messages</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Thread</th>
+                        <th>Sender</th>
+                        <th>Message</th>
+                        <th>Reason</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if flagged_messages %}
+                        {% for message in flagged_messages %}
+                        <tr>
+                            <td>
+                                {% if message.resource_title %}
+                                {{ message.resource_title }}
+                                {% else %}
+                                Thread #{{ message.thread_id }}
+                                {% endif %}
+                            </td>
+                            <td>{{ message.sender_name }}</td>
+                            <td style="max-width: 320px;">{{ message.content }}</td>
+                            <td>
+                                <div>{{ message.flag_reason }}</div>
+                                <small class="text-muted">{{ message.flagged_at|datetime_format }}</small>
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <form method="POST" action="{{ url_for('admin.admin_hide_message', message_id=message.message_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="btn btn-warning" type="submit">Hide</button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('admin.admin_delete_message', message_id=message.message_id) }}" onsubmit="return confirm('Delete this message?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="btn btn-danger" type="submit">Delete</button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('admin.admin_clear_message_flag', message_id=message.message_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="btn btn-outline-secondary" type="submit">Clear</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">No flagged messages 🎉</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "layout.html" %}
+{% block title %}Moderate Reviews{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Review Moderation</h1>
+    <div class="dashboard-card">
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Resource</th>
+                        <th>Reviewer</th>
+                        <th>Rating</th>
+                        <th>Comment</th>
+                        <th>Submitted</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if reviews %}
+                        {% for review in reviews %}
+                        <tr>
+                            <td>
+                                <strong>{{ review.resource_title }}</strong><br>
+                                <small class="text-muted">ID #{{ review.resource_id }}</small>
+                            </td>
+                            <td>{{ review.reviewer_name }}<br><small class="text-muted">User #{{ review.reviewer_id }}</small></td>
+                            <td>
+                                {% for _ in range(review.rating) %}<i class="bi bi-star-fill text-warning"></i>{% endfor %}
+                                {% for _ in range(5 - review.rating) %}<i class="bi bi-star text-muted"></i>{% endfor %}
+                            </td>
+                            <td style="max-width: 320px;">
+                                {{ review.comment or '—' }}
+                            </td>
+                            <td>{{ review.timestamp|datetime_format }}</td>
+                            <td>
+                                {% if review.is_hidden %}
+                                <span class="badge bg-danger-subtle text-danger">Hidden</span>
+                                {% else %}
+                                <span class="badge bg-success-subtle text-success">Visible</span>
+                                {% endif %}
+                                {% if review.is_flagged %}
+                                <span class="badge bg-warning text-dark">Flagged</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="d-flex gap-2 justify-content-end">
+                                    <form method="POST" action="{{ url_for('admin.admin_delete_review', review_id=review.review_id) }}" onsubmit="return confirm('Remove this review?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% if review.is_hidden %}
+                                    <form method="POST" action="{{ url_for('admin.admin_unhide_review', review_id=review.review_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-success">Unhide</button>
+                                    </form>
+                                    {% else %}
+                                    <form method="POST" action="{{ url_for('admin.admin_hide_review', review_id=review.review_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-warning">Hide</button>
+                                    </form>
+                                    {% endif %}
+                                    {% if review.is_flagged %}
+                                    <form method="POST" action="{{ url_for('admin.admin_clear_review_flag', review_id=review.review_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">Clear Flag</button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">No reviews available.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
