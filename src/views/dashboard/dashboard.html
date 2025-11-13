@@ -28,11 +28,9 @@
             <a href="{{ url_for('resource.list_resources') }}" class="btn btn-primary" aria-label="Create a new booking">
                 <i class="bi bi-plus"></i> New booking
             </a>
-            {% if current_user.role in ['admin', 'staff'] %}
             <a href="{{ url_for('resource.create') }}" class="btn btn-outline-secondary">
                 Add resource
             </a>
-            {% endif %}
             {% if current_user.role == 'admin' %}
             <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
                 Admin tools
@@ -69,27 +67,27 @@
             <h2 class="h5 mb-0" id="summary-heading">At a glance</h2>
         </div>
         <div class="stat-grid">
-            <article class="stat-card" aria-label="My bookings summary">
+            <a class="stat-card stat-card--link" href="{{ url_for('booking.my_bookings') }}" aria-label="View all my bookings">
                 <p class="stat-label">My bookings</p>
                 <p class="stat-value">{{ my_bookings|length }}</p>
-                <a href="{{ url_for('dashboard') }}#upcoming-bookings" class="stat-hint text-muted">Upcoming + history</a>
-            </article>
-            <article class="stat-card" aria-label="Messages summary">
+                <span class="stat-hint text-muted">Upcoming + history</span>
+            </a>
+            <a class="stat-card stat-card--link" href="{{ url_for('message.list_threads') }}" aria-label="View recent messages">
                 <p class="stat-label">Messages</p>
                 <p class="stat-value">{{ total_message_threads }}</p>
                 <span class="stat-hint text-muted">Recent threads</span>
-            </article>
+            </a>
             {% if can_manage_resources %}
-            <article class="stat-card" aria-label="Resources managed summary">
+            <a class="stat-card stat-card--link" href="{{ url_for('resource.list_resources', owner='me') }}" aria-label="Manage my resources">
                 <p class="stat-label">Resources I manage</p>
                 <p class="stat-value">{{ my_resources|length }}</p>
                 <span class="stat-hint text-muted">Draft + published</span>
-            </article>
-            <article class="stat-card" aria-label="Requests awaiting review summary">
+            </a>
+            <a class="stat-card stat-card--link" href="{{ url_for('booking.review_requests') }}" aria-label="Review booking requests for my resources">
                 <p class="stat-label">Requests to review</p>
                 <p class="stat-value">{{ resource_bookings|length }}</p>
-                <span class="stat-hint text-muted">Pending or active</span>
-            </article>
+                <span class="stat-hint text-muted">Pending approvals</span>
+            </a>
             {% endif %}
         </div>
     </section>
@@ -101,15 +99,17 @@
                 <div class="dashboard-card h-100">
                     <div class="card-head">
                         <h3 class="h5 mb-0">Upcoming bookings</h3>
-                        <a href="{{ url_for('dashboard') }}#upcoming-bookings" class="text-muted small" aria-label="View all bookings">View all bookings</a>
+                        <a href="{{ url_for('booking.my_bookings') }}" class="text-muted small" aria-label="View all bookings">View all bookings</a>
                     </div>
                     {% if my_bookings %}
                     <ul class="list-group list-group-flush">
-                        {% for booking in my_bookings %}
+                        {% for booking in my_bookings[:5] %}
                         <li class="list-group-item">
                             <div class="d-flex justify-content-between align-items-start gap-3">
                                 <div>
-                                    <strong>{{ booking_details[booking.booking_id].title }}</strong>
+                                    <a href="{{ url_for('booking.detail', booking_id=booking.booking_id) }}" class="text-decoration-none">
+                                        <strong>{{ booking_details[booking.booking_id].title }}</strong>
+                                    </a>
                                     <div class="text-muted small">
                                         {{ booking.start_datetime|datetime_format }} &ndash;
                                         {{ booking.end_datetime|datetime_format }}
@@ -120,6 +120,11 @@
                         </li>
                         {% endfor %}
                     </ul>
+                    {% if my_bookings|length > 5 %}
+                    <div class="p-3 text-center border-top">
+                        <a href="{{ url_for('booking.my_bookings') }}" class="btn btn-sm btn-outline-secondary">View all {{ my_bookings|length }} bookings</a>
+                    </div>
+                    {% endif %}
                     {% else %}
                     <p class="empty-state text-muted mb-0">No bookings yet. Start by <a href="{{ url_for('resource.list_resources') }}">browsing resources</a>.</p>
                     {% endif %}
@@ -169,7 +174,7 @@
                     <div class="card-head">
                         <h3 class="h5 mb-0" id="listings-heading">My listings</h3>
                         {% if my_resources %}
-                        <a href="{{ url_for('resource.list_resources', owner='me') }}" class="text-muted small">Manage listings</a>
+                        <a href="{{ url_for('resource.list_resources', owner='me') }}" class="text-muted small">View all</a>
                         {% else %}
                         <a href="{{ url_for('resource.create') }}" class="text-muted small">Create listing</a>
                         {% endif %}
@@ -180,7 +185,9 @@
                         <li class="list-group-item">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <strong>{{ resource.title }}</strong>
+                                    <a href="{{ url_for('resource.detail', resource_id=resource.resource_id) }}" class="text-decoration-none">
+                                        <strong>{{ resource.title }}</strong>
+                                    </a>
                                     <div class="text-muted small">
                                         {{ resource.category }} • {{ resource.status|capitalize }}
                                     </div>
@@ -190,24 +197,34 @@
                         </li>
                         {% endfor %}
                     </ul>
+                    {% if my_resources|length > 3 %}
+                    <div class="p-3 text-center border-top">
+                        <a href="{{ url_for('resource.list_resources', owner='me') }}" class="btn btn-sm btn-outline-secondary">View all {{ my_resources|length }} resources</a>
+                    </div>
+                    {% endif %}
                     {% elif can_manage_resources %}
                     <p class="empty-state text-muted mb-0">No listings yet. <a href="{{ url_for('resource.create') }}">Create your first listing</a>.</p>
                     {% endif %}
                 </div>
             </div>
             <div class="col-lg-6">
-                <div class="dashboard-card h-100">
+                <div class="dashboard-card h-100" id="resource-requests">
                     <div class="card-head">
-                        <h3 class="h5 mb-0">Requests for my resources</h3>
-                        <span class="text-muted small">{{ resource_bookings|length }} pending</span>
+                        <div>
+                            <h3 class="h5 mb-0">Requests for my resources</h3>
+                            <span class="text-muted small">{{ resource_bookings|length }} pending</span>
+                        </div>
+                        <a href="{{ url_for('booking.review_requests') }}" class="text-muted small">View all</a>
                     </div>
                     {% if resource_bookings %}
                     <ul class="list-group list-group-flush">
-                        {% for booking in resource_bookings %}
+                        {% for booking in resource_bookings[:3] %}
                         <li class="list-group-item">
                             <div class="d-flex justify-content-between align-items-start gap-3">
                                 <div>
-                                    <strong>{{ booking_details[booking.booking_id].title }}</strong>
+                                    <a href="{{ url_for('booking.detail', booking_id=booking.booking_id) }}" class="text-decoration-none">
+                                        <strong>{{ booking_details[booking.booking_id].title }}</strong>
+                                    </a>
                                     <div class="text-muted small mb-1">
                                         Requested by {{ booking_details[booking.booking_id].requester_name }}
                                     </div>
@@ -216,14 +233,76 @@
                                         {{ booking.end_datetime|datetime_format }}
                                     </div>
                                 </div>
-                                <span class="badge status-{{ booking.status }}" aria-label="Status {{ booking.status|upper }}">{{ booking.status|upper }}</span>
+                                <div class="text-end">
+                                    <span class="badge status-{{ booking.status }}" aria-label="Status {{ booking.status|upper }}">{{ booking.status|upper }}</span>
+                                    <div>
+                                        <a class="btn btn-link btn-sm px-0" href="{{ url_for('booking.detail', booking_id=booking.booking_id) }}">Open</a>
+                                    </div>
+                                </div>
                             </div>
                         </li>
                         {% endfor %}
                     </ul>
+                    {% if resource_bookings|length > 3 %}
+                    <div class="p-3 text-center border-top">
+                        <a href="{{ url_for('booking.review_requests') }}" class="btn btn-sm btn-outline-secondary">View all {{ resource_bookings|length }} requests</a>
+                    </div>
+                    {% endif %}
                     {% else %}
                     <p class="empty-state text-muted mb-0">No pending bookings for your resources.</p>
                     {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if not can_manage_resources and booking_stats.total > 0 %}
+    <section class="mb-4" aria-labelledby="activity-summary-heading">
+        <h2 class="h5 mb-3" id="activity-summary-heading">Your activity summary</h2>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="stat-mini-card">
+                    <div class="stat-mini-icon">
+                        <i class="bi bi-calendar-check"></i>
+                    </div>
+                    <div>
+                        <div class="stat-mini-value">{{ booking_stats.completed }}</div>
+                        <div class="stat-mini-label">Completed</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-mini-card">
+                    <div class="stat-mini-icon">
+                        <i class="bi bi-hourglass-split"></i>
+                    </div>
+                    <div>
+                        <div class="stat-mini-value">{{ booking_stats.pending }}</div>
+                        <div class="stat-mini-label">Awaiting approval</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-mini-card">
+                    <div class="stat-mini-icon">
+                        <i class="bi bi-arrow-up-circle"></i>
+                    </div>
+                    <div>
+                        <div class="stat-mini-value">{{ booking_stats.upcoming }}</div>
+                        <div class="stat-mini-label">Upcoming</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-mini-card {% if most_used_category %}stat-mini-card--accent{% endif %}">
+                    <div class="stat-mini-icon">
+                        <i class="bi bi-star"></i>
+                    </div>
+                    <div>
+                        <div class="stat-mini-value">{{ most_used_category or '—' }}</div>
+                        <div class="stat-mini-label">Top category</div>
+                    </div>
                 </div>
             </div>
         </div>

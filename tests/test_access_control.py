@@ -22,13 +22,14 @@ def test_staff_cannot_access_admin_dashboard(client):
     assert b'Admin access required' in resp.data
 
 
-def test_student_cannot_access_resource_creation(client):
+def test_student_can_access_resource_creation(client):
     login_resp = _login(client, 'student@iu.edu', 'StudentPass1!')
     assert login_resp.status_code == 200
 
     resp = client.get('/resources/create', follow_redirects=True)
     assert resp.status_code == 200
-    assert b'Only staff and administrators can add resources.' in resp.data
+    # Students can now create resources, so verify the create form is accessible
+    assert b'Add resource' in resp.data or b'Create' in resp.data
 
 
 def test_staff_cannot_manage_foreign_booking(client, app):

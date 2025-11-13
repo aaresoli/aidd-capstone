@@ -8,6 +8,19 @@ This document logs all AI assistance used during the development of the Campus R
 - **GitHub Copilot**: Code completion and suggestions
 - **Cursor AI**: Context-aware development assistance
 
+## Context Grounding
+
+**AI tools reference project context from `/docs/context/` directory:**
+
+- **Personas** (`/docs/context/personas/`) - User personas guide UX decisions
+- **Acceptance Tests** (`/docs/context/acceptance_tests/`) - Feature specifications
+- **Architecture** (`/docs/context/architecture/`) - MVC structure and patterns
+
+**Example AI Prompt with Context Grounding:**
+> "Based on the student persona in `/docs/context/personas/student_persona.md` who expects booking to complete in under 2 minutes, and the acceptance test AT-001 in `/docs/context/acceptance_tests/booking_workflow.md`, implement automatic approval for non-restricted resources to provide instant feedback."
+
+This approach ensures AI-generated code aligns with documented user needs and acceptance criteria.
+
 ## Development Timeline
 
 ### Phase 1: Planning & Architecture (Day 1-3)

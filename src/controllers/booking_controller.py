@@ -1,8 +1,20 @@
 """
 Booking Controller
 Handles booking creation, approval, and management
+
+Context Grounding (AI-Assisted Development):
+This controller implements booking workflows based on:
+- Student persona requirements (/docs/context/personas/student_persona.md)
+  - Quick booking completion (< 2 minutes)
+  - Instant feedback for non-restricted resources
+- Acceptance test AT-001 (/docs/context/acceptance_tests/booking_workflow.md)
+  - Automatic approval for non-restricted resources
+  - Manual approval workflow for restricted resources
+  - Conflict detection before booking creation
+- MVC architecture (/docs/context/architecture/mvc_structure.md)
+  - Controllers coordinate workflows, DAL handles database
 """
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from src.data_access.booking_dal import BookingDAL
@@ -24,6 +36,7 @@ from src.utils.permissions import can_manage_resource, can_view_booking, can_act
 from src.data_access.admin_log_dal import AdminLogDAL
 
 booking_bp = Blueprint('booking', __name__, url_prefix='/bookings')
+DEFAULT_RECURRENCE_COUNT = 3
 
 
 def _promote_waitlist_for_resource(resource):
@@ -95,6 +108,62 @@ def _promote_waitlist_for_resource(resource):
                 body=owner_body
             )
 
+@booking_bp.route('/my-bookings')
+@login_required
+def my_bookings():
+    """View all user's bookings with filtering"""
+    valid_filters = ['upcoming', 'pending', 'approved', 'completed', 'cancelled', 'rejected', 'all']
+    requested_filter = (request.args.get('status') or 'upcoming').lower()
+    if requested_filter not in valid_filters:
+        requested_filter = 'upcoming'
+
+    all_bookings = BookingDAL.get_bookings_by_requester(current_user.user_id)
+
+    # Filter bookings based on selected filter
+    if requested_filter == 'upcoming':
+        now = utc_now_naive()
+        filtered_bookings = [
+            b for b in all_bookings
+            if b.status in ['approved', 'pending'] and parse_datetime(b.start_datetime) and parse_datetime(b.start_datetime) >= now
+        ]
+    elif requested_filter == 'all':
+        filtered_bookings = all_bookings
+    else:
+        filtered_bookings = [b for b in all_bookings if b.status == requested_filter]
+
+    # Sort by start datetime
+    filtered_bookings.sort(key=lambda b: str(b.start_datetime or ''), reverse=False)
+
+    # Enrich bookings with resource details
+    booking_list = []
+    for booking in filtered_bookings:
+        resource = ResourceDAL.get_resource_by_id(booking.resource_id)
+        booking_list.append({
+            'booking': booking,
+            'resource_title': resource.title if resource else f'Resource #{booking.resource_id}',
+            'resource_category': resource.category if resource else 'Unknown',
+            'resource': resource
+        })
+
+    # Count bookings by status for filter badges
+    status_counts = {
+        'upcoming': len([b for b in all_bookings if b.status in ['approved', 'pending'] and parse_datetime(b.start_datetime) and parse_datetime(b.start_datetime) >= utc_now_naive()]),
+        'pending': len([b for b in all_bookings if b.status == 'pending']),
+        'approved': len([b for b in all_bookings if b.status == 'approved']),
+        'completed': len([b for b in all_bookings if b.status == 'completed']),
+        'cancelled': len([b for b in all_bookings if b.status == 'cancelled']),
+        'rejected': len([b for b in all_bookings if b.status == 'rejected']),
+        'all': len(all_bookings)
+    }
+
+    return render_template(
+        'bookings/my_bookings.html',
+        bookings=booking_list,
+        selected_status=requested_filter,
+        valid_filters=valid_filters,
+        status_counts=status_counts
+    )
+
 @booking_bp.route('/create/<int:resource_id>', methods=['GET', 'POST'])
 @login_required
 def create(resource_id):
@@ -142,35 +211,33 @@ def create(resource_id):
         start_datetime = request.form.get('start_datetime', '').strip()
         end_datetime = request.form.get('end_datetime', '').strip()
         recurrence_frequency = request.form.get('recurrence_frequency', 'none').strip().lower()
-        recurrence_count_raw = request.form.get('recurrence_count', '1').strip()
         request_action = request.form.get('request_action', 'book')
         
-        # Validation
+        # Validation - Parse datetimes
         valid, start_dt = Validator.validate_datetime(start_datetime, "Start date/time")
         if not valid:
             flash(start_dt, 'danger')
             return render_form(request.form)
-        
+
         valid, end_dt = Validator.validate_datetime(end_datetime, "End date/time")
         if not valid:
             flash(end_dt, 'danger')
             return render_form(request.form)
-        
-        # Check if end is after start
-        if end_dt <= start_dt:
-            flash('End time must be after start time', 'danger')
+
+        # Enhanced datetime range validation
+        valid, error_msg = Validator.validate_datetime_range(start_dt, end_dt)
+        if not valid:
+            flash(error_msg, 'danger')
             return render_form(request.form)
 
-        # Build recurrence schedule
         occurrences = [(start_dt, end_dt)]
         recurrence_rule = None
         if recurrence_frequency in ('daily', 'weekly'):
-            valid, recurrence_total = Validator.validate_integer(
-                recurrence_count_raw, 2, 20, "Recurrence count"
-            )
-            if not valid:
-                flash(recurrence_total, 'danger')
-                return render_form(request.form)
+            raw_default = current_app.config.get('DEFAULT_RECURRENCE_COUNT', DEFAULT_RECURRENCE_COUNT)
+            try:
+                recurrence_total = max(2, int(raw_default))
+            except (TypeError, ValueError):
+                recurrence_total = DEFAULT_RECURRENCE_COUNT
             delta = timedelta(days=1) if recurrence_frequency == 'daily' else timedelta(weeks=1)
             for i in range(1, recurrence_total):
                 occurrences.append((start_dt + delta * i, end_dt + delta * i))
@@ -178,8 +245,7 @@ def create(resource_id):
         elif recurrence_frequency not in ('none', ''):
             flash('Invalid recurrence option selected.', 'danger')
             return render_form(request.form)
-        
-        # Check for conflicts across all occurrences
+
         conflict_index = None
         for index, (occ_start, occ_end) in enumerate(occurrences):
             if BookingDAL.check_booking_conflict(resource_id, occ_start, occ_end):
@@ -220,7 +286,7 @@ def create(resource_id):
                                 f'({humanize_datetime(conflict_start)} – {humanize_datetime(conflict_end)}).'
                             )
                         )
-                    flash('Added to the waitlist. We will notify you if the slot opens up.', 'success')
+                flash('Added to the waitlist. We will notify you if the slot opens up.', 'success')
                 return redirect(url_for('booking.create', resource_id=resource_id))
 
             label = 'your initial selection' if conflict_index == 0 else f'occurrence #{conflict_index + 1}'
@@ -368,22 +434,53 @@ def detail(booking_id):
         calendar_event=calendar_event
     )
 
+@booking_bp.route('/review-requests')
+@login_required
+def review_requests():
+    """List booking requests that require action from the current user."""
+    owned_resources = ResourceDAL.get_resources_by_owner(current_user.user_id)
+    manages_resources = current_user.role in ['staff', 'admin'] or bool(owned_resources)
+    if not manages_resources:
+        flash('You do not manage any resources yet.', 'info')
+        return redirect(url_for('dashboard'))
+
+    valid_filters = ['pending', 'approved', 'rejected', 'cancelled', 'completed', 'all']
+    requested_filter = (request.args.get('status') or 'pending').lower()
+    if requested_filter not in valid_filters:
+        requested_filter = 'pending'
+
+    query_status = None if requested_filter == 'all' else requested_filter
+    bookings = BookingDAL.get_bookings_for_owner(current_user.user_id, statuses=query_status)
+    total_pending = len(BookingDAL.get_bookings_for_owner(current_user.user_id, statuses='pending'))
+
+    return render_template(
+        'bookings/review_requests.html',
+        bookings=bookings,
+        selected_status=requested_filter,
+        valid_filters=valid_filters,
+        total_pending=total_pending,
+        owns_resources=bool(owned_resources)
+    )
+
 @booking_bp.route('/<int:booking_id>/approve', methods=['POST'])
 @login_required
 def approve(booking_id):
     """Approve a booking"""
     booking = BookingDAL.get_booking_by_id(booking_id)
+    redirect_next = request.form.get('next')
+    if redirect_next and not redirect_next.startswith('/'):
+        redirect_next = None
     
     if not booking:
         flash('Booking not found', 'danger')
-        return redirect(url_for('dashboard'))
+        return redirect(redirect_next or url_for('dashboard'))
     
     resource = ResourceDAL.get_resource_by_id(booking.resource_id)
     
     # Check permission (resource owner, staff, or admin)
     if not can_act_on_booking(resource):
         flash('You do not have permission to approve this booking', 'danger')
-        return redirect(url_for('booking.detail', booking_id=booking_id))
+        return redirect(redirect_next or url_for('booking.detail', booking_id=booking_id))
     
     resource_title = resource.title if resource else f"Resource #{booking.resource_id}"
     notes_raw = request.form.get('decision_notes', '').strip()
@@ -392,7 +489,7 @@ def approve(booking_id):
         valid, msg = Validator.validate_string(notes_raw, 3, 1000, "Notes")
         if not valid:
             flash(msg, 'danger')
-            return redirect(url_for('booking.detail', booking_id=booking_id))
+            return redirect(redirect_next or url_for('booking.detail', booking_id=booking_id))
         decision_notes = Validator.sanitize_html(notes_raw)
     admin_override = is_admin() and resource.owner_id != current_user.user_id
     try:
@@ -425,23 +522,26 @@ def approve(booking_id):
     except Exception as e:
         flash(f'Error approving booking: {str(e)}', 'danger')
     
-    return redirect(url_for('booking.detail', booking_id=booking_id))
+    return redirect(redirect_next or url_for('booking.detail', booking_id=booking_id))
 
 @booking_bp.route('/<int:booking_id>/reject', methods=['POST'])
 @login_required
 def reject(booking_id):
     """Reject a booking"""
     booking = BookingDAL.get_booking_by_id(booking_id)
+    redirect_next = request.form.get('next')
+    if redirect_next and not redirect_next.startswith('/'):
+        redirect_next = None
     
     if not booking:
         flash('Booking not found', 'danger')
-        return redirect(url_for('dashboard'))
+        return redirect(redirect_next or url_for('dashboard'))
     
     resource = ResourceDAL.get_resource_by_id(booking.resource_id)
     
     if not can_act_on_booking(resource):
         flash('You do not have permission to reject this booking', 'danger')
-        return redirect(url_for('booking.detail', booking_id=booking_id))
+        return redirect(redirect_next or url_for('booking.detail', booking_id=booking_id))
     
     resource_title = resource.title if resource else f"Resource #{booking.resource_id}"
     notes_raw = request.form.get('decision_notes', '').strip()
@@ -450,7 +550,7 @@ def reject(booking_id):
         valid, msg = Validator.validate_string(notes_raw, 3, 1000, "Notes")
         if not valid:
             flash(msg, 'danger')
-            return redirect(url_for('booking.detail', booking_id=booking_id))
+            return redirect(redirect_next or url_for('booking.detail', booking_id=booking_id))
         decision_notes = Validator.sanitize_html(notes_raw)
     admin_override = is_admin() and resource.owner_id != current_user.user_id
     try:

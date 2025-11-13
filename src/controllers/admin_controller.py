@@ -39,6 +39,18 @@ def format_datetime(value):
             return value
     return dt_obj.strftime('%b %d, %Y %I:%M %p')
 
+
+def parse_datetime(value):
+    """Convert strings or datetimes into datetime objects."""
+    if isinstance(value, datetime):
+        return value
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+
 @admin_bp.route('/')
 @login_required
 @admin_required
@@ -66,6 +78,9 @@ def dashboard():
         'archived': len([r for r in all_resources if r.status == 'archived'])
     }
     department_usage = BookingDAL.summarize_by_department()
+    department_total = sum(row.get('total', 0) for row in department_usage)
+    resource_lookup = {resource.resource_id: resource for resource in all_resources}
+    draft_resources = [resource for resource in all_resources if resource.status == 'draft']
 
     def month_sequence(window=6):
         base = datetime.utcnow().replace(day=1)
@@ -110,9 +125,11 @@ def dashboard():
         ('Rejected', 'rejected'),
         ('Cancelled', 'cancelled')
     ]
+    booking_series = attach_labels(booking_trend)
+    user_series = attach_labels(user_trend)
     chart_data = {
-        'bookingTrend': attach_labels(booking_trend),
-        'userGrowth': attach_labels(user_trend),
+        'bookingTrend': booking_series,
+        'userGrowth': user_series,
         'roleMix': [
             {'label': 'Students', 'value': stats['students']},
             {'label': 'Staff', 'value': stats['staff']},
@@ -131,14 +148,74 @@ def dashboard():
         'topCategories': category_summary
     }
 
-    return render_template('admin/admin_dashboard.html', 
-                         stats=stats,
-                         resource_status=status_counts,
-                         department_usage=department_usage,
-                         users=users[:10],
-                         resources=all_resources[:10],
-                         pending_bookings=pending_bookings[:10],
-                         chart_data=chart_data)
+    def summarize_delta(series, key='total'):
+        current = series[-1].get(key, 0) if series else 0
+        previous = series[-2].get(key, 0) if len(series) > 1 else 0
+        delta = current - previous
+        delta_pct = (delta / previous * 100) if previous else None
+        return current, delta, delta_pct
+
+    user_current, user_delta, user_delta_pct = summarize_delta(user_series)
+    booking_current, booking_delta, booking_delta_pct = summarize_delta(booking_series)
+
+    booking_status_total = sum(booking_status_map.values())
+    approval_rate_pct = 0
+    if booking_status_total:
+        approved = booking_status_map.get('approved', 0)
+        completed = booking_status_map.get('completed', 0)
+        approval_rate_pct = ((approved + completed) / booking_status_total) * 100
+
+    publish_rate_pct = (status_counts['published'] / stats['total_resources']) * 100 if stats['total_resources'] else 0
+    draft_share_pct = (status_counts['draft'] / stats['total_resources']) * 100 if stats['total_resources'] else 0
+
+    now = datetime.utcnow()
+    pending_dates = []
+    for booking in pending_bookings:
+        created_value = parse_datetime(getattr(booking, 'created_at', None))
+        start_value = parse_datetime(getattr(booking, 'start_datetime', None))
+        pending_dates.append(created_value or start_value)
+    pending_dates = [dt for dt in pending_dates if dt]
+    queue_age_days = None
+    if pending_dates:
+        oldest = min(pending_dates)
+        queue_age_days = max((now - oldest).days, 0)
+
+    if queue_age_days is None:
+        queue_age_text = ''
+    elif queue_age_days == 0:
+        queue_age_text = 'today'
+    elif queue_age_days == 1:
+        queue_age_text = '1 day ago'
+    else:
+        queue_age_text = f'{queue_age_days} days ago'
+
+    insights = {
+        'queue_age_days': queue_age_days,
+        'queue_age_text': queue_age_text,
+        'monthly_new_users': user_current,
+        'user_delta': user_delta,
+        'user_delta_pct': user_delta_pct,
+        'publish_rate_pct': publish_rate_pct,
+        'draft_share_pct': draft_share_pct,
+        'booking_delta': booking_delta,
+        'booking_delta_pct': booking_delta_pct,
+        'booking_status_total': booking_status_total,
+        'approval_rate_pct': approval_rate_pct
+    }
+
+    return render_template(
+        'admin/admin_dashboard.html',
+        stats=stats,
+        resource_status=status_counts,
+        department_usage=department_usage,
+        department_total=department_total,
+        users=users[:10],
+        draft_resources=draft_resources[:6],
+        pending_bookings=pending_bookings[:8],
+        chart_data=chart_data,
+        insights=insights,
+        resource_lookup=resource_lookup
+    )
 
 @admin_bp.route('/users')
 @login_required

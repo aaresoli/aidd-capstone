@@ -2,6 +2,7 @@
 Resource Data Access Layer
 Handles all database operations for resources
 """
+from datetime import datetime, timedelta, timezone
 from src.data_access import get_db
 from src.models.models import Resource
 
@@ -173,6 +174,33 @@ class ResourceDAL:
             ''', (owner_id,))
             rows = cursor.fetchall()
             
+        return [Resource(**dict(row)) for row in rows]
+
+    @staticmethod
+    def get_recently_published_by_owner(owner_id, days=30, limit=3):
+        """Return recently published resources for a specific owner."""
+        if not owner_id:
+            return []
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff_str = cutoff.replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S')
+
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''
+                SELECT *
+                FROM resources
+                WHERE owner_id = ?
+                  AND status = 'published'
+                  AND datetime(created_at) >= datetime(?)
+                ORDER BY datetime(created_at) DESC
+                LIMIT ?
+                ''',
+                (owner_id, cutoff_str, limit)
+            )
+            rows = cursor.fetchall()
+
         return [Resource(**dict(row)) for row in rows]
     
     @staticmethod

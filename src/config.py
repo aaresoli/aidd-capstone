@@ -27,13 +27,21 @@ class Config:
     
     # Session configuration
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
-    SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+    # Auto-detect production environment for secure cookies
+    SESSION_COOKIE_SECURE = os.environ.get('FLASK_ENV') == 'production'
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
-    
+
     # WTForms CSRF protection
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = None  # No time limit for CSRF tokens
+
+    # Security headers
+    SEND_FILE_MAX_AGE_DEFAULT = 31536000  # 1 year for static files
+
+    # Content Security Policy (CSP) - Additional protection against XSS
+    # Note: Implement via middleware in app.py if needed
+    CSP_ENABLED = os.environ.get('CSP_ENABLED', 'False').lower() == 'true'
     
     # Application settings
     RESOURCES_PER_PAGE = 12

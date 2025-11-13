@@ -4,6 +4,7 @@ Server-side validation for all user inputs
 """
 import re
 from datetime import datetime
+import bleach
 
 class Validator:
     """Input validation utilities"""
@@ -61,6 +62,75 @@ class Validator:
             return True, dt
         except (ValueError, AttributeError):
             return False, f"{field_name} must be a valid date and time"
+
+    @staticmethod
+    def validate_datetime_range(start_dt, end_dt, allow_past=False, max_days_future=365):
+        """
+        Validate datetime range for bookings.
+
+        Args:
+            start_dt: Start datetime object
+            end_dt: End datetime object
+            allow_past: Whether to allow dates in the past (default False)
+            max_days_future: Maximum days in future allowed (default 365)
+
+        Returns:
+            Tuple (is_valid, error_message)
+        """
+        from datetime import datetime, timedelta
+
+        now = datetime.now()
+
+        # Check end is after start
+        if end_dt <= start_dt:
+            return False, "End time must be after start time"
+
+        # Check not in the past (unless explicitly allowed)
+        if not allow_past and start_dt < now:
+            return False, "Cannot book dates in the past"
+
+        # Check reasonable booking duration (max 7 days per booking)
+        duration = (end_dt - start_dt).total_seconds() / 3600  # hours
+        if duration > 168:  # 7 days
+            return False, "Booking duration cannot exceed 7 days"
+
+        # Check minimum duration (at least 30 minutes)
+        if duration < 0.5:
+            return False, "Booking must be at least 30 minutes"
+
+        # Check not too far in future
+        if max_days_future and (start_dt - now).days > max_days_future:
+            return False, f"Cannot book more than {max_days_future} days in advance"
+
+        return True, "Valid"
+
+    @staticmethod
+    def validate_file_type(filename, allowed_extensions=None):
+        """
+        Validate file extension.
+
+        Args:
+            filename: Name of the file
+            allowed_extensions: Set of allowed extensions (default: images only)
+
+        Returns:
+            Tuple (is_valid, error_message)
+        """
+        if not filename:
+            return False, "Filename is required"
+
+        if allowed_extensions is None:
+            allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
+
+        if '.' not in filename:
+            return False, "File must have an extension"
+
+        extension = filename.rsplit('.', 1)[1].lower()
+
+        if extension not in allowed_extensions:
+            return False, f"File type .{extension} not allowed. Allowed types: {', '.join(allowed_extensions)}"
+
+        return True, extension
     
     @staticmethod
     def validate_rating(rating):
@@ -84,18 +154,45 @@ class Validator:
     
     @staticmethod
     def sanitize_html(text):
-        """Basic HTML sanitization"""
+        """
+        Production-grade HTML sanitization using bleach library.
+        Removes all HTML tags and attributes for maximum security.
+        """
         if not text:
             return ""
-        # Remove potentially dangerous tags
-        dangerous_patterns = [
-            r'<script[^>]*>.*?</script>',
-            r'<iframe[^>]*>.*?</iframe>',
-            r'on\w+="[^"]*"',
-            r"on\w+='[^']*'",
-            r'javascript\s*:',
-            r'vbscript\s*:',
-        ]
-        for pattern in dangerous_patterns:
-            text = re.sub(pattern, '', text, flags=re.IGNORECASE | re.DOTALL)
-        return text.strip()
+
+        # Use bleach to strip all HTML tags and attributes
+        # This is the safest approach for user-generated content
+        cleaned = bleach.clean(
+            text,
+            tags=[],  # Allow no HTML tags
+            attributes={},  # Allow no attributes
+            strip=True  # Remove tags instead of escaping them
+        )
+
+        return cleaned.strip()
+
+    @staticmethod
+    def sanitize_html_basic(text, allowed_tags=None):
+        """
+        HTML sanitization that allows specific safe tags.
+        Use only when you need to preserve formatting.
+        """
+        if not text:
+            return ""
+
+        if allowed_tags is None:
+            # Safe tags that don't allow script execution
+            allowed_tags = ['p', 'br', 'strong', 'em', 'u', 'ol', 'ul', 'li']
+
+        # Safe attributes (none by default for maximum security)
+        allowed_attributes = {}
+
+        cleaned = bleach.clean(
+            text,
+            tags=allowed_tags,
+            attributes=allowed_attributes,
+            strip=True
+        )
+
+        return cleaned.strip()

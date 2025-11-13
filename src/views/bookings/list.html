@@ -40,7 +40,7 @@
                 {% else %}
                 {% set image_src = url_for('static', filename='uploads/' + first_image) %}
                 {% endif %}
-                <div class="resource-image" style="background-image: url('{{ image_src }}');"></div>
+                <div class="resource-image" data-lazy-bg="{{ image_src }}"></div>
                 {% else %}
                 <div class="resource-image resource-placeholder"><i class="bi bi-building"></i></div>
                 {% endif %}

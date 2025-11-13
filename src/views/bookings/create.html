@@ -58,16 +58,11 @@
                             <label for="recurrence_frequency" class="form-label">Recurrence</label>
                             {% set recurrence_value = form_data.get('recurrence_frequency', 'none') %}
                             <select class="form-select" id="recurrence_frequency" name="recurrence_frequency">
-                                <option value="none" {% if recurrence_value == 'none' %}selected{% endif %}>Single booking</option>
+                                <option value="none" {% if recurrence_value == 'none' %}selected{% endif %}>One time</option>
                                 <option value="daily" {% if recurrence_value == 'daily' %}selected{% endif %}>Repeat daily</option>
                                 <option value="weekly" {% if recurrence_value == 'weekly' %}selected{% endif %}>Repeat weekly</option>
                             </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="recurrence_count" class="form-label">Occurrences</label>
-                            <input type="number" class="form-control" id="recurrence_count" name="recurrence_count"
-                                   min="2" max="20" value="{{ form_data.get('recurrence_count', '2') }}">
-                            <small class="text-muted">Only used when recurrence is enabled.</small>
+                            <small class="text-muted">Repeats create a limited series automatically.</small>
                         </div>
                     </div>
                     {% if waitlist_offer %}

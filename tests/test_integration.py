@@ -107,8 +107,7 @@ def test_booking_end_to_end(app, client):
         data={
             'start_datetime': start.strftime('%Y-%m-%dT%H:%M'),
             'end_datetime': end.strftime('%Y-%m-%dT%H:%M'),
-            'recurrence_frequency': 'none',
-            'recurrence_count': '1'
+            'recurrence_frequency': 'none'
         },
         follow_redirects=True
     )

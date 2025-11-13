@@ -2,6 +2,7 @@
 Message Data Access Layer
 Handles all database operations for messages
 """
+from typing import List, Dict
 from src.data_access import get_db
 from src.models.models import Message
 
@@ -115,6 +116,34 @@ class MessageDAL:
             ''', (user_id, user_id, user_id, user_id))
             rows = cursor.fetchall()
         
+        return [dict(row) for row in rows]
+
+    @staticmethod
+    def get_recent_incoming_messages(user_id: int, limit: int = 3) -> List[Dict]:
+        """Return the latest messages sent to the specified user."""
+        if not user_id:
+            return []
+
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''
+                SELECT m.*,
+                       mt.thread_id,
+                       sender.name AS sender_name,
+                       res.title AS resource_title
+                FROM messages m
+                JOIN message_threads mt ON m.thread_id = mt.thread_id
+                JOIN users sender ON sender.user_id = m.sender_id
+                LEFT JOIN resources res ON res.resource_id = mt.resource_id
+                WHERE m.receiver_id = ? AND m.is_hidden = 0
+                ORDER BY datetime(m.timestamp) DESC
+                LIMIT ?
+                ''',
+                (user_id, limit)
+            )
+            rows = cursor.fetchall()
+
         return [dict(row) for row in rows]
     
     @staticmethod

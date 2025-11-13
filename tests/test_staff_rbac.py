@@ -134,7 +134,6 @@ def test_staff_request_for_restricted_foreign_resource_stays_pending(client, app
             'start_datetime': start_value,
             'end_datetime': end_value,
             'recurrence_frequency': 'none',
-            'recurrence_count': '1',
             'request_action': 'book'
         },
         follow_redirects=True

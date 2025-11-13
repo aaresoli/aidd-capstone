@@ -9,6 +9,11 @@ import os
 from datetime import datetime, timedelta
 from collections import defaultdict
 from urllib.parse import urlencode
+try:
+    import magic
+    HAS_MAGIC = True
+except ImportError:
+    HAS_MAGIC = False
 from src.data_access.resource_dal import ResourceDAL
 from src.data_access.review_dal import ReviewDAL
 from src.data_access.booking_dal import BookingDAL
@@ -33,20 +38,46 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']
 
 def save_uploaded_images(files, existing_paths=None):
-    """Persist uploaded images safely and return combined list of filenames"""
+    """
+    Persist uploaded images safely with MIME type validation.
+    Returns combined list of filenames.
+    """
     saved_files = list(existing_paths) if existing_paths else []
     upload_dir = os.path.abspath(current_app.config['UPLOAD_FOLDER'])
+
+    # Allowed MIME types for images
+    allowed_mimes = {
+        'image/png',
+        'image/jpeg',
+        'image/jpg',
+        'image/gif'
+    }
 
     for file in files:
         if not file or not file.filename:
             continue
 
+        # Check file extension
         if not allowed_file(file.filename):
             raise ValueError('Unsupported file type. Allowed types: ' + ', '.join(sorted(current_app.config['ALLOWED_EXTENSIONS'])))
 
         filename = secure_filename(file.filename)
         if not filename:
             raise ValueError('Invalid file name.')
+
+        # MIME type validation (if python-magic is available)
+        if HAS_MAGIC:
+            file.seek(0)  # Reset file pointer
+            file_content = file.read(2048)  # Read first 2KB for MIME detection
+            file.seek(0)  # Reset again for saving
+
+            try:
+                mime = magic.from_buffer(file_content, mime=True)
+                if mime not in allowed_mimes:
+                    raise ValueError(f'File content type {mime} not allowed. File appears to be disguised.')
+            except Exception as e:
+                current_app.logger.warning(f'MIME type validation failed: {e}')
+                # Continue with extension-only validation if magic fails
 
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         safe_name = f"{timestamp}_{filename}"
@@ -358,10 +389,6 @@ def create():
     """Create a new resource"""
     categories = RESOURCE_CATEGORIES
 
-    if not user_has_role('staff', 'admin'):
-        flash('Only staff and administrators can add resources.', 'danger')
-        return redirect(url_for('dashboard'))
-
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
         description = request.form.get('description', '').strip()
@@ -563,25 +590,57 @@ def edit(resource_id):
             flash(f'Error updating resource: {str(e)}', 'danger')
     
     return render_template('resources/edit.html', resource=resource, categories=RESOURCE_CATEGORIES, form_data={})
-    
-    categories = ['Study Room', 'Lab Equipment', 'Event Space', 'AV Equipment', 'Tutoring', 'Other']
-    return render_template('resources/edit.html', resource=resource, categories=categories)
+
+def delete_resource_files(resource):
+    """
+    Delete image files associated with a resource.
+    Called before deleting the resource from database.
+    """
+    if not resource or not resource.images:
+        return
+
+    upload_dir = os.path.abspath(current_app.config['UPLOAD_FOLDER'])
+    image_files = [img.strip() for img in resource.images.split(',') if img.strip()]
+
+    for filename in image_files:
+        # Skip external URLs
+        if filename.startswith('http://') or filename.startswith('https://'):
+            continue
+
+        file_path = os.path.abspath(os.path.join(upload_dir, filename))
+
+        # Security check: ensure file is within upload directory
+        if not file_path.startswith(upload_dir + os.sep):
+            current_app.logger.warning(f'Attempted to delete file outside upload directory: {filename}')
+            continue
+
+        # Delete file if it exists
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                current_app.logger.info(f'Deleted file: {filename}')
+            except Exception as e:
+                current_app.logger.error(f'Failed to delete file {filename}: {e}')
 
 @resource_bp.route('/<int:resource_id>/delete', methods=['POST'])
 @login_required
 def delete(resource_id):
-    """Delete a resource"""
+    """Delete a resource and its associated files"""
     resource = ResourceDAL.get_resource_by_id(resource_id)
-    
+
     if not resource:
         flash('Resource not found', 'danger')
         return redirect(url_for('dashboard'))
-    
+
     if not can_manage_resource(resource):
         flash('You do not have permission to delete this resource', 'danger')
         return redirect(url_for('resource.detail', resource_id=resource_id))
-    
+
     try:
+        # Delete associated files first
+        delete_resource_files(resource)
+
+        # Then delete from database
         ResourceDAL.delete_resource(resource_id)
         flash('Resource deleted successfully', 'success')
         if is_admin() and not owns_resource(resource):

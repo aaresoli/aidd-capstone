@@ -46,10 +46,7 @@ SAMPLE_RESOURCES = [
         'availability_rules': 'Sunday–Thursday 7:00 AM – 11:00 PM | Friday–Saturday 7:00 AM – 8:00 PM',
         'is_restricted': False,
         'owner_email': 'staff@iu.edu',
-        'images': ','.join([
-            'https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&w=1600&q=80',
-            'https://images.unsplash.com/photo-1523475472560-d2df97ec485c?auto=format&fit=crop&w=1600&q=80'
-        ])
+        'images': 'wells.jpg'
     },
     {
         'title': 'Luddy School Prototyping Lab',
@@ -64,10 +61,7 @@ SAMPLE_RESOURCES = [
         'availability_rules': 'Weekdays 9:00 AM – 9:00 PM with staff present; reservations limited to 3 hours',
         'is_restricted': True,
         'owner_email': 'staff@iu.edu',
-        'images': ','.join([
-            'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1600&q=80',
-            'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1600&q=80'
-        ])
+        'images': 'luddy.jpg'
     },
     {
         'title': 'IU Auditorium Main Stage',
@@ -82,10 +76,7 @@ SAMPLE_RESOURCES = [
         'availability_rules': 'Submit requests at least 14 days in advance; staff approval required',
         'is_restricted': True,
         'owner_email': 'admin@iu.edu',
-        'images': ','.join([
-            'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80',
-            'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=1600&q=80'
-        ])
+        'images': 'auditorium.jpg'
     },
     {
         'title': 'Kelley School Podcast Studio',
@@ -100,10 +91,7 @@ SAMPLE_RESOURCES = [
         'availability_rules': 'Bookings auto-approved for staff; students require a Kelley faculty sponsor',
         'is_restricted': True,
         'owner_email': 'admin@iu.edu',
-        'images': ','.join([
-            'https://images.unsplash.com/photo-1518552781905-998e991dedc0?auto=format&fit=crop&w=1600&q=80',
-            'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1600&q=80'
-        ])
+        'images': 'podcast.jpg'
     },
     {
         'title': 'SRSC Court 6 (Recreation Pickup)',
@@ -118,10 +106,7 @@ SAMPLE_RESOURCES = [
         'availability_rules': 'Bookings available in 90-minute blocks; facility team confirms within 2 business days',
         'is_restricted': False,
         'owner_email': 'staff@iu.edu',
-        'images': ','.join([
-            'https://images.unsplash.com/photo-1505843513577-22bb7d21e455?auto=format&fit=crop&w=1600&q=80',
-            'https://images.unsplash.com/photo-1519861531473-9200262188bf?auto=format&fit=crop&w=1600&q=80'
-        ])
+        'images': 'srsc.jpg'
     },
     {
         'title': 'IMU Georgian Room Collaboration Hall',
@@ -136,10 +121,7 @@ SAMPLE_RESOURCES = [
         'availability_rules': 'Reservations approved by the IMU events desk; submit at least 7 days ahead',
         'is_restricted': True,
         'owner_email': 'staff@iu.edu',
-        'images': ','.join([
-            'https://images.unsplash.com/photo-1448932223592-d1fc686e76ea?auto=format&fit=crop&w=1600&q=80',
-            'https://images.unsplash.com/photo-1470229538611-16ba8c7ffbd7?auto=format&fit=crop&w=1600&q=80'
-        ])
+        'images': 'georgian.jpg'
     }
 ]
 

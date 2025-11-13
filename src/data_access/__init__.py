@@ -244,6 +244,14 @@ def init_database():
             )
         ''')
 
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_notification_state (
+                user_id INTEGER PRIMARY KEY,
+                last_seen_at DATETIME,
+                FOREIGN KEY (user_id) REFERENCES users(user_id)
+            )
+        ''')
+
         # Calendar integrations
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS calendar_credentials (

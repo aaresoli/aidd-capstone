@@ -145,6 +145,72 @@ class BookingDAL:
         return [Booking(**dict(row)) for row in rows]
 
     @staticmethod
+    def get_bookings_for_owner(owner_id, statuses=None, limit=None, offset=0):
+        """Return bookings tied to resources owned by the provided user."""
+        query = '''
+            SELECT b.*,
+                   r.title AS resource_title,
+                   r.category AS resource_category,
+                   r.location AS resource_location,
+                   u.name AS requester_name,
+                   u.email AS requester_email
+            FROM bookings b
+            JOIN resources r ON b.resource_id = r.resource_id
+            JOIN users u ON b.requester_id = u.user_id
+            WHERE r.owner_id = ?
+        '''
+        params = [owner_id]
+
+        if statuses:
+            if isinstance(statuses, (list, tuple, set)):
+                placeholders = ','.join('?' for _ in statuses)
+                query += f' AND b.status IN ({placeholders})'
+                params.extend(list(statuses))
+            else:
+                query += ' AND b.status = ?'
+                params.append(statuses)
+
+        query += ' ORDER BY b.start_datetime DESC'
+
+        if limit:
+            query += ' LIMIT ? OFFSET ?'
+            params.extend([limit, offset])
+
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+        return [dict(row) for row in rows]
+
+    @staticmethod
+    def get_recent_pending_requests_for_owner(owner_id, limit=3):
+        """Return recent pending booking requests that target the user's resources."""
+        if not owner_id:
+            return []
+
+        query = '''
+            SELECT b.*,
+                   r.title AS resource_title,
+                   u.name AS requester_name,
+                   u.email AS requester_email
+            FROM bookings b
+            JOIN resources r ON b.resource_id = r.resource_id
+            JOIN users u ON b.requester_id = u.user_id
+            WHERE r.owner_id = ?
+              AND b.status = 'pending'
+            ORDER BY datetime(b.created_at) DESC
+            LIMIT ?
+        '''
+
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (owner_id, limit))
+            rows = cursor.fetchall()
+
+        return [dict(row) for row in rows]
+
+    @staticmethod
     def update_booking_status(booking_id, status, decision_notes=None, decision_by=None):
         """Update booking status and optionally capture reviewer context."""
         set_clauses = ['status = ?', 'updated_at = CURRENT_TIMESTAMP']

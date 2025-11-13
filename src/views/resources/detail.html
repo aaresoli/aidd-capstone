@@ -6,7 +6,7 @@
         <div class="col-lg-8">
             <div class="dashboard-card">
                 {% if resource.images %}
-                <div id="resourceCarousel" class="carousel slide mb-4">
+                <div id="resourceCarousel" class="carousel slide resource-carousel mb-4">
                     <div class="carousel-inner">
                         {% for img in resource.images.split(',') %}
                         {% set trimmed = img.strip() %}
@@ -14,21 +14,28 @@
                         {% if trimmed.startswith('http') %}
                         {% set image_src = trimmed %}
                         {% else %}
-                        {% set image_src = url_for('static', filename='uploads/' + trimmed) %}
+                        {% set image_src = url_for('static', filename='images/' + trimmed) %}
                         {% endif %}
                         <div class="carousel-item {% if loop.first %}active{% endif %}">
-                            <img src="{{ image_src }}" class="d-block w-100" style="max-height: 400px; object-fit: cover; border-radius: 12px;" alt="{{ resource.title }}">
+                            <img {% if loop.first %}src="{{ image_src }}"{% else %}data-src="{{ image_src }}" loading="lazy"{% endif %} class="d-block w-100 resource-detail-img" alt="{{ resource.title }} - Image {{ loop.index }}">
                         </div>
                         {% endif %}
                         {% endfor %}
                     </div>
                     {% if resource.images.split(',')|length > 1 %}
-                    <button class="carousel-control-prev" type="button" data-bs-target="#resourceCarousel" data-bs-slide="prev">
-                        <span class="carousel-control-prev-icon"></span>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#resourceCarousel" data-bs-slide="prev" aria-label="Previous image">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
                     </button>
-                    <button class="carousel-control-next" type="button" data-bs-target="#resourceCarousel" data-bs-slide="next">
-                        <span class="carousel-control-next-icon"></span>
+                    <button class="carousel-control-next" type="button" data-bs-target="#resourceCarousel" data-bs-slide="next" aria-label="Next image">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
                     </button>
+                    <div class="carousel-indicators">
+                        {% for img in resource.images.split(',') %}
+                        {% if img.strip() %}
+                        <button type="button" data-bs-target="#resourceCarousel" data-bs-slide-to="{{ loop.index0 }}" {% if loop.first %}class="active" aria-current="true"{% endif %} aria-label="Slide {{ loop.index }}"></button>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -129,46 +136,61 @@
 
                 {% for review in reviews %}
                 <div class="review-card">
-                    <div class="d-flex justify-content-between mb-2">
-                        <div>
-                            <strong>{{ review.reviewer_name }}</strong>
-                            <div class="text-muted small">{{ review.timestamp|datetime_format }}</div>
+                    <div class="review-header">
+                        <div class="review-avatar">
+                            <i class="bi bi-person-circle"></i>
                         </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="star-rating">
-                                {% for _ in range(review.rating) %}★{% endfor %}
-                                {% for _ in range(5 - review.rating) %}☆{% endfor %}
+                        <div class="review-meta flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="review-author mb-0">{{ review.reviewer_name }}</h6>
+                                    <div class="review-date">{{ review.timestamp|datetime_format }}</div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="star-rating">
+                                        {% for _ in range(review.rating) %}<i class="bi bi-star-fill"></i>{% endfor %}
+                                        {% for _ in range(5 - review.rating) %}<i class="bi bi-star"></i>{% endfor %}
+                                    </div>
+                                    {% if current_user.is_authenticated and (current_user.user_id == review.reviewer_id or current_user.role == 'admin') %}
+                                    <form method="POST" action="{{ url_for('review.delete', review_id=review.review_id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-link text-danger" data-confirm-delete title="Delete review">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
                             </div>
-                            {% if current_user.is_authenticated and (current_user.user_id == review.reviewer_id or current_user.role == 'admin') %}
-                            <form method="POST" action="{{ url_for('review.delete', review_id=review.review_id) }}">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm-delete>
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                            {% endif %}
                         </div>
                     </div>
                     {% if review.comment %}
-                    <p class="mb-1">{{ review.comment }}</p>
+                    <div class="review-body">
+                        <p class="mb-0">{{ review.comment }}</p>
+                    </div>
                     {% endif %}
                     {% if current_user.is_authenticated and current_user.user_id != review.reviewer_id %}
-                    <div>
-                        <button class="btn btn-sm btn-outline-warning" type="button" data-bs-toggle="collapse" data-bs-target="#reportReview{{ review.review_id }}" aria-expanded="false" aria-controls="reportReview{{ review.review_id }}">
-                            <i class="bi bi-flag"></i> Report
+                    <div class="review-actions">
+                        <button class="btn btn-sm btn-link text-muted" type="button" data-bs-toggle="collapse" data-bs-target="#reportReview{{ review.review_id }}" aria-expanded="false">
+                            <i class="bi bi-flag"></i> Report inappropriate content
                         </button>
                         <div class="collapse mt-2" id="reportReview{{ review.review_id }}">
-                            <form method="POST" action="{{ url_for('review.flag', review_id=review.review_id) }}">
+                            <form method="POST" action="{{ url_for('review.flag', review_id=review.review_id) }}" class="report-form">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <textarea class="form-control form-control-sm mb-2" name="reason" rows="2" placeholder="Tell us what's wrong" required></textarea>
-                                <button type="submit" class="btn btn-sm btn-warning">Submit Report</button>
+                                <textarea class="form-control form-control-sm mb-2" name="reason" rows="2" placeholder="Please describe the issue..." required></textarea>
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-sm btn-warning">Submit Report</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#reportReview{{ review.review_id }}">Cancel</button>
+                                </div>
                             </form>
                         </div>
                     </div>
                     {% endif %}
                 </div>
                 {% else %}
-                <p class="text-muted mb-0">No reviews yet. Be the first to review!</p>
+                <div class="empty-state">
+                    <i class="bi bi-chat-square-text"></i>
+                    <p class="mb-0">No reviews yet. Be the first to share your experience!</p>
+                </div>
                 {% endfor %}
             </div>
         </div>

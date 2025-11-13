@@ -188,14 +188,6 @@
             'No role data to visualize.'
         );
 
-        const bookingStatus = chartData.bookingStatus || [];
-        renderDoughnutChart(
-            document.getElementById('bookingStatusChart'),
-            bookingStatus.map(item => item.label || 'Unknown'),
-            bookingStatus.map(item => valueOrZero(item.value)),
-            'No booking decisions recorded yet.'
-        );
-
         const userGrowth = chartData.userGrowth || [];
         renderBarChart(
             document.getElementById('userGrowthChart'),

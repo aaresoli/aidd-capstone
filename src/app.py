@@ -39,15 +39,23 @@ from src.controllers import (
     review_bp,
     admin_bp,
     calendar_bp,
-    accessibility_bp
+    accessibility_bp,
+    notification_bp
 )
 from src.utils.calendar_sync import GOOGLE_PROVIDER
+from src.services.notification_center import NotificationCenter
 
 def create_app():
     """Application factory"""
     app = Flask(__name__, template_folder='views', static_folder='static')
     app.config.from_object(Config)
-    
+
+    # Configure caching based on environment
+    # In production, cache static files for 1 year (31536000 seconds)
+    # In development, disable caching for easier CSS/JS changes
+    is_production = app.config.get('ENV') == 'production' or os.environ.get('FLASK_ENV') == 'production'
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000 if is_production else 0
+
     # Enable CSRF protection for forms
     CSRFProtect(app)
     
@@ -80,6 +88,7 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(calendar_bp)
     app.register_blueprint(accessibility_bp)
+    app.register_blueprint(notification_bp)
 
     @app.before_request
     def enforce_account_health():
@@ -88,6 +97,24 @@ def create_app():
             logout_user()
             flash('Your account is currently suspended. Please contact an administrator.', 'danger')
             return redirect(url_for('auth.login'))
+
+    @app.context_processor
+    def inject_cache_bust():
+        """Add cache busting timestamp to templates."""
+        import time
+        return dict(cache_bust=int(time.time()))
+
+    @app.context_processor
+    def inject_nav_notifications():
+        """Expose notification payload to every template."""
+        payload = {'items': [], 'count': 0}
+        if current_user.is_authenticated:
+            payload = NotificationCenter.build_for_user(current_user, limit=6)
+        return {
+            'nav_notifications': payload.get('items', []),
+            'nav_notification_total': payload.get('count', 0),
+            'nav_notification_new_count': payload.get('new_count', 0)
+        }
     
     # Main routes
     @app.route('/')
@@ -118,7 +145,7 @@ def create_app():
         my_bookings = BookingDAL.get_bookings_by_requester(current_user.user_id)
         my_resources = ResourceDAL.get_resources_by_owner(current_user.user_id)
         google_connection = CalendarCredentialDAL.get_credentials(current_user.user_id, GOOGLE_PROVIDER)
-        can_manage_resources = current_user.role in ['staff', 'admin']
+        can_manage_resources = True  # All authenticated users can create and manage resources
         listings_preview = my_resources[:3]
         message_threads = MessageDAL.get_user_threads(current_user.user_id)
         recent_threads = message_threads[:3]
@@ -168,10 +195,32 @@ def create_app():
         for resource in my_resources:
             bookings = BookingDAL.get_bookings_by_resource(resource.resource_id)
             for booking in bookings:
-                if booking.requester_id != current_user.user_id:
-                    resource_bookings.append(booking)
                 ensure_booking_metadata(booking)
-        
+                if (
+                    booking.status == 'pending'
+                    and booking.requester_id != current_user.user_id
+                ):
+                    resource_bookings.append(booking)
+        resource_bookings.sort(key=lambda b: str(b.start_datetime or ''))
+
+        # Calculate activity stats
+        booking_stats = {
+            'total': len(my_bookings),
+            'upcoming': len([b for b in my_bookings if b.status in ['approved', 'pending']]),
+            'completed': len([b for b in my_bookings if b.status == 'completed']),
+            'pending': len([b for b in my_bookings if b.status == 'pending']),
+            'cancelled': len([b for b in my_bookings if b.status == 'cancelled'])
+        }
+
+        # Get category breakdown for user's bookings
+        category_counts = {}
+        for booking in my_bookings:
+            resource = resolve_resource(booking.resource_id)
+            if resource and resource.category:
+                category_counts[resource.category] = category_counts.get(resource.category, 0) + 1
+
+        most_used_category = max(category_counts.items(), key=lambda x: x[1])[0] if category_counts else None
+
         return render_template(
             'dashboard/dashboard.html',
             my_bookings=my_bookings,
@@ -184,7 +233,9 @@ def create_app():
             listings_preview=listings_preview,
             can_manage_resources=can_manage_resources,
             recent_message_threads=recent_threads,
-            total_message_threads=len(message_threads)
+            total_message_threads=len(message_threads),
+            booking_stats=booking_stats,
+            most_used_category=most_used_category
         )
     
     # Error handlers
