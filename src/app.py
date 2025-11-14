@@ -315,6 +315,24 @@ def create_app():
             return f"{days}d ago"
         return dt_val.strftime('%b %d, %Y')
     
+    @app.template_filter('nl2br')
+    def nl2br(value):
+        """Convert newlines to <br> tags for HTML display."""
+        if value is None:
+            return ''
+        return str(value).replace('\n', '<br>')
+    
+    @app.template_filter('markdown_bold')
+    def markdown_bold(value):
+        """Convert markdown-style **bold** to HTML <strong> tags."""
+        if value is None:
+            return ''
+        import re
+        # Convert **text** to <strong>text</strong>
+        text = str(value)
+        text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+        return text
+    
     return app
 
 def _can_enable_debug():

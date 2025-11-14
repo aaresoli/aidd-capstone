@@ -81,7 +81,7 @@ def _promote_waitlist_for_resource(resource):
                 recurrence_rule=entry.recurrence_rule
             )
         except Exception as exc:
-            print(f"[Waitlist] Failed to create booking for entry {entry.entry_id}: {exc}")
+            current_app.logger.error(f"[Waitlist] Failed to create booking for entry {entry.entry_id}: {exc}")
             continue
 
         WaitlistDAL.mark_promoted(entry.entry_id, booking.booking_id)

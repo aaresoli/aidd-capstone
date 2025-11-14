@@ -83,7 +83,11 @@ class LocalLLMClient:
         payload = {
             'model': self.model,
             'messages': messages,
-            'stream': False
+            'stream': False,
+            'options': {
+                'num_predict': 200,  # Reduced for faster responses while maintaining quality
+                'temperature': 0.5,  # Slightly higher for more natural, conversational tone
+            }
         }
         self._log_debug('Posting prompt to Ollama', payload_summary=_safe_prompt_preview(messages))
 
@@ -112,7 +116,8 @@ class LocalLLMClient:
         payload = {
             'model': self.model,
             'stream': False,
-            'temperature': 0,
+            'temperature': 0.5,  # Slightly higher for more natural, conversational tone
+            'max_tokens': 200,  # Reduced for faster responses while maintaining quality
             'messages': messages
         }
         headers = {'Content-Type': 'application/json'}

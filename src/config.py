@@ -77,7 +77,7 @@ class Config:
     # Local LLM settings (Ollama, LM Studio, etc.)
     LOCAL_LLM_BASE_URL = os.environ.get('LOCAL_LLM_BASE_URL')
     LOCAL_LLM_MODEL = os.environ.get('LOCAL_LLM_MODEL', 'llama3.1')
-    LOCAL_LLM_PROVIDER = os.environ.get('LOCAL_LLM_PROVIDER', 'openai')
+    LOCAL_LLM_PROVIDER = os.environ.get('LOCAL_LLM_PROVIDER', 'ollama')
     LOCAL_LLM_API_KEY = os.environ.get('LOCAL_LLM_API_KEY')
     LOCAL_LLM_TIMEOUT = int(os.environ.get('LOCAL_LLM_TIMEOUT', 30))
 

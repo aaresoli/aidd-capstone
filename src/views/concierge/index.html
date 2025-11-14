@@ -2,226 +2,210 @@
 {% block title %}AI Resource Concierge · Campus Resource Hub{% endblock %}
 
 {% block content %}
-<section class="py-5 bg-light border-bottom">
+<section class="py-5" style="background: linear-gradient(135deg, rgba(153, 0, 0, 0.03) 0%, rgba(153, 0, 0, 0.01) 100%);">
     <div class="container">
-        <div class="row align-items-center g-4">
-            <div class="col-lg-7">
-                <p class="text-uppercase text-muted small fw-semibold mb-2">Campus Resource Hub</p>
-                <h1 class="display-5 fw-bold mb-3">AI Resource Concierge</h1>
-                <p class="lead text-muted mb-4">
-                    Ask natural-language questions about our university resources and receive grounded answers that cite
-                    live data from the Campus Resource Hub plus curated context from the docs/context playbook.
-                </p>
-                <div class="d-flex flex-wrap gap-3">
-                    <span class="badge bg-white border text-dark">
-                        <i class="bi bi-database me-2"></i>SQLite-backed
-                    </span>
-                    <span class="badge bg-white border text-dark">
-                        <i class="bi bi-robot me-2"></i>Local LLM ready
-                    </span>
-                    <span class="badge bg-white border text-dark">
-                        <i class="bi bi-journals me-2"></i>docs/context aware
-                    </span>
+        <div class="row justify-content-center">
+            <div class="col-lg-10 col-xl-8">
+                <!-- Header -->
+                <div class="text-center mb-5">
+                    <p class="text-uppercase text-crimson small fw-bold mb-2" style="letter-spacing: 0.15em;">AI Resource Concierge</p>
+                    <h1 class="display-5 fw-bold mb-3">Ask anything about campus resources</h1>
+                    <p class="lead text-muted mb-0" style="max-width: 600px; margin: 0 auto;">
+                        Get instant answers about study rooms, maker spaces, equipment, and more—powered by AI and verified campus data.
+                    </p>
                 </div>
-            </div>
-            <div class="col-lg-5">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body">
-                        <p class="text-uppercase text-muted small fw-semibold mb-2">Documentation sources</p>
-                        {% if doc_sources %}
-                        <ul class="list-unstyled small mb-0">
-                            {% for source in doc_sources %}
-                            <li class="d-flex align-items-center mb-1">
-                                <i class="bi bi-file-text text-crimson me-2"></i>
-                                <span>{{ source }}</span>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                        {% else %}
-                        <p class="text-muted small mb-0">No markdown files were found under docs/context.</p>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
 
-<section class="py-5">
-    <div class="container">
-        <div class="row g-4">
-            <div class="col-lg-7">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-                            <div>
-                                <p class="text-uppercase text-muted small mb-1">Ask the concierge</p>
-                                <h2 class="h4 mb-0">Grounded guidance</h2>
-                            </div>
-                            <span class="badge bg-soft-crimson text-crimson">
-                                <i class="bi bi-stars me-1"></i>Docs + SQLite context
-                            </span>
-                        </div>
+                <!-- Question Form -->
+                <div class="card shadow-lg border-0 mb-4" style="border-radius: 1rem;">
+                    <div class="card-body p-4">
                         {% if error_message %}
-                        <div class="alert alert-danger" role="alert">
-                            {{ error_message }}
+                        <div class="alert alert-danger mb-4" role="alert">
+                            <i class="bi bi-exclamation-circle me-2"></i>{{ error_message }}
                         </div>
                         {% endif %}
+                        
                         <form method="post" novalidate>
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <div class="mb-3">
-                                <label for="question" class="form-label fw-semibold">Question</label>
-                                <textarea id="question" name="question" class="form-control" rows="4" required placeholder="e.g., Which study rooms allow drop-in reservations on weekends?">{{ question }}</textarea>
-                                <div class="form-text">Write between 1 and 1000 characters.</div>
-                            </div>
-                            <div class="row g-3 align-items-end">
-                                <div class="col-md-6">
-                                    <label for="category" class="form-label">Filter by category</label>
-                                    <select id="category" name="category" class="form-select">
-                                        <option value="">All categories</option>
-                                        {% for category in category_options %}
-                                        <option value="{{ category }}" {% if category == selected_category %}selected{% endif %}>{{ category }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-check mt-4">
-                                        <input class="form-check-input" type="checkbox" value="1" id="published_only" name="published_only" {% if published_only %}checked{% endif %}>
-                                        <label class="form-check-label" for="published_only">
-                                            Only consider currently published resources
-                                        </label>
-                                    </div>
+                            
+                            <div class="mb-4">
+                                <label for="question" class="form-label fw-semibold mb-2">
+                                    <i class="bi bi-chat-dots me-2 text-primary"></i>What would you like to know?
+                                </label>
+                                <textarea 
+                                    id="question" 
+                                    name="question" 
+                                    class="form-control form-control-lg" 
+                                    rows="3" 
+                                    required 
+                                    placeholder="e.g., Which study rooms are available for drop-in use on weekends?"
+                                    style="font-size: 1.05rem; border-radius: 0.75rem;">{{ question }}</textarea>
+                                <div class="form-text mt-2">
+                                    <i class="bi bi-info-circle me-1"></i>Ask in natural language—no need to be formal!
                                 </div>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center mt-4">
-                                <small class="text-muted">Local data only. No external APIs.</small>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-robot me-2"></i>Ask Concierge
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg" style="border-radius: 0.75rem;">
+                                    <i class="bi bi-stars me-2"></i>Ask the Concierge
                                 </button>
                             </div>
                         </form>
                     </div>
                 </div>
-            </div>
-            <div class="col-lg-5">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body">
-                        <h3 class="h5 mb-3">Live catalog snapshot</h3>
-                        {% if concierge_result and concierge_result.stats.total_resources %}
-                        <p class="text-muted small mb-3">
-                            {{ concierge_result.stats.total_resources }} total resources · {{ concierge_result.stats.category_counts|length }} active categories
-                        </p>
-                        {% endif %}
-                        <p class="text-uppercase text-muted small mb-2">Top categories</p>
-                        {% if concierge_result and concierge_result.stats.category_counts %}
-                        <ul class="list-unstyled small">
-                            {% for entry in concierge_result.stats.category_counts %}
-                            <li class="d-flex justify-content-between align-items-center py-1 border-bottom">
-                                <span>{{ entry.category }}</span>
-                                <span class="text-muted">{{ entry.total }}</span>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                        {% else %}
-                        <p class="text-muted small">Submit a question to load category insights.</p>
-                        {% endif %}
-                        <p class="text-uppercase text-muted small mb-2 mt-4">Most requested</p>
-                        {% if concierge_result and concierge_result.stats.most_requested %}
-                        <ul class="list-unstyled small mb-0">
-                            {% for entry in concierge_result.stats.most_requested %}
-                            <li class="mb-1">
-                                {{ entry.title }} · <span class="text-muted">{{ entry.total }} bookings</span>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                        {% else %}
-                        <p class="text-muted small mb-0">Booking trends will appear after the first concierge call.</p>
-                        {% endif %}
+
+                <!-- Answer Section -->
+                {% if concierge_result %}
+                <div class="card shadow-lg border-0 mb-4" style="border-radius: 1rem; overflow: hidden;">
+                    <div class="card-body p-4">
+                        <!-- Question Display -->
+                        <div class="mb-4 pb-4 border-bottom">
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="flex-shrink-0">
+                                    <div class="bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                        <i class="bi bi-question-circle text-primary" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1" style="min-width: 0;">
+                                    <p class="text-muted small mb-1">Your question</p>
+                                    <h3 class="h5 mb-0 fw-semibold" style="word-wrap: break-word; overflow-wrap: break-word;">{{ concierge_result.question }}</h3>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Answer Display -->
+                        <div class="mb-4">
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="flex-shrink-0">
+                                    <div class="bg-success bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                        <i class="bi bi-robot text-success" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1" style="min-width: 0;">
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <p class="text-muted small mb-0">Concierge response</p>
+                                        {% if concierge_result.used_llm %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                            <i class="bi bi-stars me-1"></i>AI-powered
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="concierge-answer-text">
+                                        {{ concierge_result.answer|markdown_bold|nl2br|safe }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        {% if concierge_result %}
-        <div class="row g-4 mt-4">
-            <div class="col-lg-8">
-                {% if concierge_result.llm_error %}
-                <div class="alert alert-warning" role="alert">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    Local AI unavailable: {{ concierge_result.llm_error }}.
-                    {% if not concierge_result.used_llm %}
-                    Showing a fallback summary generated from verified data.
-                    {% endif %}
+                <!-- Relevant Resources -->
+                {% if concierge_result.resources %}
+                <div class="card shadow-sm border-0 mb-4" style="border-radius: 1rem;">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <i class="bi bi-bookmark-star text-primary" style="font-size: 1.25rem;"></i>
+                            <h3 class="h5 mb-0 fw-semibold">Relevant Resources</h3>
+                            <span class="badge bg-primary-subtle text-primary ms-auto">{{ concierge_result.resources|length }} found</span>
+                        </div>
+                        <div class="row g-3">
+                            {% for resource in concierge_result.resources %}
+                            <div class="col-md-6">
+                                <a href="{{ url_for('resource.detail', resource_id=resource.resource_id) }}" 
+                                   class="text-decoration-none">
+                                    <div class="card h-100 border hover-shadow" style="transition: all 0.2s; border-radius: 0.75rem;">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <h5 class="card-title h6 mb-0 fw-semibold">{{ resource.title }}</h5>
+                                                <span class="badge bg-light text-dark border">{{ resource.category or 'General' }}</span>
+                                            </div>
+                                            <p class="text-muted small mb-2" style="font-size: 0.9rem;">
+                                                {{ resource.description[:100] }}{% if resource.description and resource.description|length > 100 %}...{% endif %}
+                                            </p>
+                                            <div class="d-flex flex-wrap gap-2 small text-muted">
+                                                {% if resource.location %}
+                                                <span><i class="bi bi-geo-alt me-1"></i>{{ resource.location }}</span>
+                                                {% endif %}
+                                                {% if resource.capacity %}
+                                                <span><i class="bi bi-people me-1"></i>{{ resource.capacity }} seats</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
                 {% endif %}
-                <div class="card shadow-sm mb-4">
-                    <div class="card-body">
-                        <p class="text-uppercase text-muted small mb-1">Your question</p>
-                        <h3 class="h5">{{ concierge_result.question }}</h3>
-                        <hr>
-                        <p class="text-uppercase text-muted small mb-3">
-                            {% if concierge_result.used_llm %}
-                            Answer synthesized by your local AI using verified context
-                            {% else %}
-                            Deterministic summary using catalog + docs/context data
-                            {% endif %}
-                        </p>
-                        <pre class="mb-0 concierge-answer">{{ concierge_result.answer }}</pre>
-                    </div>
+
+                <!-- Error Message (if any) -->
+                {% if concierge_result.llm_error and concierge_result.llm_error != 'Local AI runtime is not configured.' %}
+                <div class="alert alert-warning border-0 shadow-sm" style="border-radius: 0.75rem;" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Note:</strong> {{ concierge_result.llm_error }}
                 </div>
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div>
-                                <p class="text-uppercase text-muted small mb-1">Relevant resources</p>
-                                <h3 class="h5 mb-0">Context used in the answer</h3>
-                            </div>
-                        </div>
-                        {% if concierge_result.resources %}
-                        <div class="list-group list-group-flush">
-                            {% for resource in concierge_result.resources %}
-                            <a href="{{ url_for('resource.detail', resource_id=resource.resource_id) }}" class="list-group-item list-group-item-action flex-column align-items-start">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h5 class="mb-1">{{ resource.title }}</h5>
-                                    <span class="badge bg-light text-dark border">{{ resource.category or 'General' }}</span>
-                                </div>
-                                <p class="mb-1 text-muted small">{{ resource.description[:180] }}{% if resource.description and resource.description|length > 180 %}...{% endif %}</p>
-                                <ul class="list-inline small text-muted mb-0">
-                                    <li class="list-inline-item"><i class="bi bi-geo-alt me-1"></i>{{ resource.location or 'Location TBD' }}</li>
-                                    <li class="list-inline-item"><i class="bi bi-people me-1"></i>{{ resource.capacity or 'Varies' }} seats</li>
-                                    <li class="list-inline-item"><i class="bi bi-shield-check me-1"></i>{% if resource.is_restricted %}Approval required{% else %}Auto-approves{% endif %}</li>
-                                </ul>
-                            </a>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <p class="text-muted mb-0">No catalog entries were relevant to this query.</p>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body">
-                        <h3 class="h5 mb-3">Documentation context</h3>
-                        {% if concierge_result.doc_snippets %}
-                        <div class="list-group list-group-flush">
-                            {% for snippet in concierge_result.doc_snippets %}
-                            <div class="list-group-item">
-                                <p class="small text-uppercase text-muted mb-1">{{ snippet.source }}</p>
-                                <h4 class="h6 mb-1">{{ snippet.heading }}</h4>
-                                <p class="small text-muted mb-0">{{ snippet.preview }}</p>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <p class="text-muted small">No docs/context snippets matched this query.</p>
-                        {% endif %}
-                    </div>
-                </div>
+                {% endif %}
+                {% endif %}
             </div>
         </div>
-        {% endif %}
     </div>
 </section>
+
+<style>
+.concierge-answer-text {
+    font-size: 1.05rem;
+    line-height: 1.75;
+    color: var(--bs-body-color);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    word-break: break-word;
+    max-width: 100%;
+    width: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+    background: rgba(0, 0, 0, 0.02);
+    padding: 1.25rem;
+    border-radius: 0.75rem;
+    border-left: 3px solid var(--bs-primary);
+    text-align: left;
+    display: block;
+    overflow-wrap: break-word;
+}
+
+.concierge-answer-text strong,
+.concierge-answer-text b {
+    font-weight: 600;
+    color: var(--bs-body-color);
+}
+
+/* Better spacing for bullet points */
+.concierge-answer-text ul,
+.concierge-answer-text ol {
+    padding-left: 1.5rem;
+    margin: 0.75rem 0;
+}
+
+.concierge-answer-text li {
+    margin: 0.5rem 0;
+}
+
+/* Format paragraphs */
+.concierge-answer-text p {
+    margin: 0.75rem 0;
+}
+
+.concierge-answer-text p:first-child {
+    margin-top: 0;
+}
+
+.concierge-answer-text p:last-child {
+    margin-bottom: 0;
+}
+
+.hover-shadow:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-2px);
+    transition: all 0.2s;
+}
+</style>
 {% endblock %}
