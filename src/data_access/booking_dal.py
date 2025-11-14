@@ -108,16 +108,18 @@ class BookingDAL:
     
     @staticmethod
     def get_bookings_by_resource(resource_id):
-        """Get all bookings for a resource"""
+        """Get all bookings for a resource with requester names"""
         with get_db() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT * FROM bookings 
-                WHERE resource_id = ? 
-                ORDER BY start_datetime DESC
+                SELECT b.*, u.name as requester_name
+                FROM bookings b
+                LEFT JOIN users u ON b.requester_id = u.user_id
+                WHERE b.resource_id = ?
+                ORDER BY b.start_datetime DESC
             ''', (resource_id,))
             rows = cursor.fetchall()
-            
+
         return [Booking(**dict(row)) for row in rows]
 
     @staticmethod

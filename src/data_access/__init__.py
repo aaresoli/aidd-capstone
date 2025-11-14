@@ -43,12 +43,31 @@ def init_database():
                 profile_image TEXT,
                 department TEXT,
                 is_suspended INTEGER NOT NULL DEFAULT 0 CHECK(is_suspended IN (0, 1)),
+                email_verified INTEGER NOT NULL DEFAULT 0 CHECK(email_verified IN (0, 1)),
+                verification_token TEXT,
+                verification_token_expiry DATETIME,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
 
+        # Add new columns for existing databases
         try:
             cursor.execute('ALTER TABLE users ADD COLUMN is_suspended INTEGER NOT NULL DEFAULT 0 CHECK(is_suspended IN (0, 1))')
+        except OperationalError:
+            pass
+
+        try:
+            cursor.execute('ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0 CHECK(email_verified IN (0, 1))')
+        except OperationalError:
+            pass
+
+        try:
+            cursor.execute('ALTER TABLE users ADD COLUMN verification_token TEXT')
+        except OperationalError:
+            pass
+
+        try:
+            cursor.execute('ALTER TABLE users ADD COLUMN verification_token_expiry DATETIME')
         except OperationalError:
             pass
 
@@ -230,19 +249,45 @@ def init_database():
             )
         ''')
 
-        # Notifications table for simulated email delivery
-        cursor.execute('''
+        notifications_table_sql = '''
             CREATE TABLE IF NOT EXISTS notifications (
                 notification_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 channel TEXT NOT NULL,
                 subject TEXT NOT NULL,
                 body TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'sent')),
+                status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'sent', 'logged', 'error')),
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(user_id)
             )
-        ''')
+        '''
+        # Notifications table for simulated email delivery
+        cursor.execute(notifications_table_sql)
+
+        # Upgrade legacy notification status constraint so we can log delivery state.
+        cursor.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='notifications'"
+        )
+        notification_table = cursor.fetchone()
+        if notification_table and "CHECK(status IN ('pending', 'sent'))" in notification_table['sql']:
+            # Remove orphaned notifications that reference deleted users so the
+            # upgraded table (with FK enforcement) can be rebuilt safely.
+            cursor.execute(
+                '''
+                DELETE FROM notifications
+                WHERE user_id NOT IN (SELECT user_id FROM users)
+                '''
+            )
+            cursor.execute(notifications_table_sql.replace('notifications (', 'notifications_new ('))
+            cursor.execute(
+                '''
+                INSERT INTO notifications_new (notification_id, user_id, channel, subject, body, status, created_at)
+                SELECT notification_id, user_id, channel, subject, body, status, created_at
+                FROM notifications
+                '''
+            )
+            cursor.execute('DROP TABLE notifications')
+            cursor.execute('ALTER TABLE notifications_new RENAME TO notifications')
 
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS user_notification_state (

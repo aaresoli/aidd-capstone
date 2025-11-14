@@ -35,6 +35,7 @@ def build_booking_calendar(bookings: Iterable, month_token: Optional[str] = None
         bookings_by_day[day_key] = bookings_by_day.get(day_key, 0) + 1
 
     cal = calendar.Calendar(firstweekday=6)  # Start week on Sunday
+    today = utc_now_naive().date()
     month_rows = []
     for week in cal.monthdatescalendar(base_date.year, base_date.month):
         week_cells = []
@@ -43,7 +44,8 @@ def build_booking_calendar(bookings: Iterable, month_token: Optional[str] = None
             week_cells.append({
                 'date': day,
                 'in_month': day.month == base_date.month,
-                'booking_count': bookings_by_day.get(day_key, 0)
+                'booking_count': bookings_by_day.get(day_key, 0),
+                'is_today': day == today
             })
         month_rows.append(week_cells)
 

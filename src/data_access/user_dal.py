@@ -145,3 +145,84 @@ class UserDAL:
             )
             rows = cursor.fetchall()
         return [dict(row) for row in rows]
+
+    @staticmethod
+    def set_verification_token(user_id, token, expiry):
+        """Set email verification token for a user"""
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'UPDATE users SET verification_token = ?, verification_token_expiry = ? WHERE user_id = ?',
+                (token, expiry, user_id)
+            )
+        return cursor.rowcount > 0
+
+    @staticmethod
+    def verify_email_by_token(token):
+        """
+        Verify user email by token
+
+        Returns:
+            User object if token is valid, None otherwise
+        """
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''
+                SELECT * FROM users
+                WHERE verification_token = ?
+                AND verification_token_expiry > datetime('now')
+                AND email_verified = 0
+                ''',
+                (token,)
+            )
+            row = cursor.fetchone()
+
+            if row:
+                # Mark email as verified and clear the token
+                user_id = row['user_id']
+                cursor.execute(
+                    '''
+                    UPDATE users
+                    SET email_verified = 1,
+                        verification_token = NULL,
+                        verification_token_expiry = NULL
+                    WHERE user_id = ?
+                    ''',
+                    (user_id,)
+                )
+                conn.commit()
+                return User(**dict(row))
+
+        return None
+
+    @staticmethod
+    def get_user_by_verification_token(token):
+        """Get user by verification token (without verifying)"""
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT * FROM users WHERE verification_token = ?',
+                (token,)
+            )
+            row = cursor.fetchone()
+
+        if row:
+            return User(**dict(row))
+        return None
+
+    @staticmethod
+    def resend_verification_token(user_id, token, expiry):
+        """Update verification token for resending"""
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''
+                UPDATE users
+                SET verification_token = ?,
+                    verification_token_expiry = ?
+                WHERE user_id = ? AND email_verified = 0
+                ''',
+                (token, expiry, user_id)
+            )
+        return cursor.rowcount > 0

@@ -10,20 +10,29 @@ class ResourceDAL:
     """Data access layer for resource operations"""
     
     @staticmethod
-    def create_resource(owner_id, title, description, category, location, 
+    def create_resource(owner_id, title, description, category, location,
                        capacity=None, images=None, availability_rules=None,
-                       equipment=None, is_restricted=False, status='draft'):
-        """Create a new resource"""
+                       equipment=None, is_restricted=False, status='draft',
+                       availability_schedule=None, min_booking_minutes=30,
+                       max_booking_minutes=480, booking_increment_minutes=30,
+                       buffer_minutes=0, advance_booking_days=90, min_lead_time_hours=0):
+        """Create a new resource with availability schedule"""
         with get_db() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO resources (owner_id, title, description, category, location, 
-                                      capacity, images, equipment, availability_rules, is_restricted, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (owner_id, title, description, category, location, capacity, 
-                  images, equipment, availability_rules, int(is_restricted), status))
+                INSERT INTO resources (owner_id, title, description, category, location,
+                                      capacity, images, equipment, availability_rules, is_restricted, status,
+                                      availability_schedule, min_booking_minutes, max_booking_minutes,
+                                      booking_increment_minutes, buffer_minutes, advance_booking_days,
+                                      min_lead_time_hours)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (owner_id, title, description, category, location, capacity,
+                  images, equipment, availability_rules, int(is_restricted), status,
+                  availability_schedule, min_booking_minutes, max_booking_minutes,
+                  booking_increment_minutes, buffer_minutes, advance_booking_days,
+                  min_lead_time_hours))
             resource_id = cursor.lastrowid
-            
+
         return ResourceDAL.get_resource_by_id(resource_id)
     
     @staticmethod
@@ -206,21 +215,24 @@ class ResourceDAL:
     @staticmethod
     def update_resource(resource_id, **kwargs):
         """Update resource fields"""
-        allowed_fields = ['title', 'description', 'category', 'location', 
-                         'capacity', 'images', 'equipment', 'availability_rules', 'is_restricted', 'status']
+        allowed_fields = ['title', 'description', 'category', 'location',
+                         'capacity', 'images', 'equipment', 'availability_rules', 'is_restricted', 'status',
+                         'availability_schedule', 'min_booking_minutes', 'max_booking_minutes',
+                         'booking_increment_minutes', 'buffer_minutes', 'advance_booking_days',
+                         'min_lead_time_hours']
         updates = {k: v for k, v in kwargs.items() if k in allowed_fields}
-        
+
         if not updates:
             return False
-        
+
         set_clause = ', '.join(f"{k} = ?" for k in updates.keys())
         values = [int(v) if k == 'is_restricted' else v for k, v in updates.items()]
         values.append(resource_id)
-        
+
         with get_db() as conn:
             cursor = conn.cursor()
             cursor.execute(f'UPDATE resources SET {set_clause} WHERE resource_id = ?', values)
-            
+
         return cursor.rowcount > 0
     
     @staticmethod

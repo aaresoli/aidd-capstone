@@ -21,6 +21,11 @@ from src.utils.validators import Validator
 from src.utils.permissions import user_has_role, can_manage_resource, is_admin, owns_resource
 from src.data_access.admin_log_dal import AdminLogDAL
 from src.utils.datetime_helpers import build_booking_calendar, utc_now_naive, parse_datetime
+from src.utils.availability import (
+    SCHEDULE_TEMPLATES, get_template_schedule, parse_schedule,
+    format_schedule_display, get_booking_rules_summary, get_next_available_slot
+)
+import json
 
 resource_bp = Blueprint('resource', __name__, url_prefix='/resources')
 RESOURCE_CATEGORIES = ['Study Room', 'Lab Equipment', 'Event Space', 'AV Equipment', 'Tutoring', 'Other']
@@ -187,46 +192,77 @@ def list_resources():
 
     now = utc_now_naive()
 
-    def next_available_window(intervals):
-        """Return a tuple describing the next free window (start, end) if determinable."""
-        if not intervals:
-            return now, None
-        window_start = now
-        for start_dt, end_dt in intervals:
-            if end_dt <= window_start:
-                continue
-            if start_dt <= window_start < end_dt:
-                window_start = end_dt
-                continue
-            if window_start < start_dt:
-                return window_start, start_dt
-        return window_start, None
+    def calculate_next_available(resource, bookings):
+        """Calculate next available slot using smart availability system"""
+        # Parse resource schedule
+        schedule = parse_schedule(getattr(resource, 'availability_schedule', None))
 
-    def format_window(window):
-        start_dt, end_dt = window
-        if not start_dt:
-            return None
+        if not schedule:
+            # Fallback: no schedule defined, use old logic
+            if not bookings:
+                return now, 'Open now', 'success'
+            # Find next gap in bookings
+            window_start = now
+            for start_dt, end_dt in bookings:
+                if end_dt <= window_start:
+                    continue
+                if start_dt <= window_start < end_dt:
+                    window_start = end_dt
+                    continue
+                if window_start < start_dt:
+                    break
+            return window_start, 'Check availability', 'info'
+
+        # Use smart availability calculation
+        buffer_minutes = getattr(resource, 'buffer_minutes', 0) or 0
+        lead_time_hours = getattr(resource, 'min_lead_time_hours', 0) or 0
+        duration_minutes = 60  # Default 1-hour slot for display
+
+        # Convert bookings to proper format
+        booking_objects = []
+        for start_dt, end_dt in bookings:
+            # Create a simple object with the required attributes
+            class BookingSlot:
+                def __init__(self, start, end):
+                    self.start_datetime = start
+                    self.end_datetime = end
+                    self.status = 'approved'
+            booking_objects.append(BookingSlot(start_dt, end_dt))
+
+        next_slot = get_next_available_slot(
+            schedule=schedule,
+            existing_bookings=booking_objects,
+            duration_minutes=duration_minutes,
+            buffer_minutes=buffer_minutes,
+            lead_time_hours=lead_time_hours,
+            max_days_ahead=7
+        )
+
+        if next_slot:
+            delta = next_slot - now
+            if delta <= timedelta(minutes=5):
+                status, badge = 'Open now', 'success'
+            elif delta <= timedelta(hours=24):
+                status, badge = 'Available soon', 'info'
+            else:
+                status, badge = 'Limited availability', 'warning'
+            return next_slot, status, badge
+        else:
+            return None, 'No availability', 'danger'
+
+    def format_next_available(next_dt):
+        """Format the next available datetime for display"""
+        if not next_dt:
+            return "No availability in next 7 days"
+
         day_label = 'Today'
-        if start_dt.date() == (now + timedelta(days=1)).date():
+        if next_dt.date() == (now + timedelta(days=1)).date():
             day_label = 'Tomorrow'
-        elif start_dt.date() != now.date():
-            day_label = start_dt.strftime('%b %d')
-        start_label = start_dt.strftime('%I:%M %p').lstrip('0')
-        if end_dt:
-            end_label = end_dt.strftime('%I:%M %p').lstrip('0')
-            return f"{day_label}, {start_label} – {end_label}"
-        return f"{day_label}, {start_label} onward"
-    
-    def summarize_availability(window):
-        start_dt, _ = window
-        if not start_dt:
-            return None, None
-        delta = start_dt - now
-        if delta <= timedelta(minutes=5):
-            return 'Open now', 'success'
-        if delta <= timedelta(hours=24):
-            return 'Available soon', 'info'
-        return 'Limited availability', 'warning'
+        elif next_dt.date() != now.date():
+            day_label = next_dt.strftime('%b %d')
+
+        time_label = next_dt.strftime('%I:%M %p').lstrip('0')
+        return f"{day_label}, {time_label}"
 
     def can_access_resource(resource):
         """Students can view unrestricted resources; staff/admin can view all."""
@@ -240,9 +276,8 @@ def list_resources():
     top_rated_threshold = 4.5
     for resource in resources:
         intervals = bookings_by_resource.get(resource.resource_id, [])
-        window = next_available_window(intervals) if intervals else (now, None)
-        label = format_window(window)
-        availability_status, availability_badge = summarize_availability(window)
+        next_dt, availability_status, availability_badge = calculate_next_available(resource, intervals)
+        label = format_next_available(next_dt)
         stats = ReviewDAL.get_resource_rating_stats(resource.resource_id)
         avg_rating = stats['avg_rating'] if stats and stats['avg_rating'] else 0
         total_reviews = stats['total_reviews'] if stats else 0
@@ -375,19 +410,29 @@ def detail(resource_id):
     if current_user.is_authenticated:
         has_reviewed = ReviewDAL.user_has_reviewed(resource_id, current_user.user_id)
     
+    # Add availability information
+    from src.utils.availability import parse_schedule, format_schedule_display, get_booking_rules_summary
+
+    schedule = parse_schedule(getattr(resource, 'availability_schedule', None))
+    schedule_display = format_schedule_display(schedule) if schedule else None
+    booking_rules = get_booking_rules_summary(resource)
+
     return render_template('resources/detail.html',
                          resource=resource,
                          avg_rating=avg_rating,
                          review_count=review_count,
                          reviews=reviews,
                          stats=stats,
-                         has_reviewed=has_reviewed)
+                         has_reviewed=has_reviewed,
+                         schedule_display=schedule_display,
+                         booking_rules=booking_rules)
 
 @resource_bp.route('/create', methods=['GET', 'POST'])
 @login_required
 def create():
     """Create a new resource"""
     categories = RESOURCE_CATEGORIES
+    schedule_templates = SCHEDULE_TEMPLATES
 
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
@@ -399,6 +444,15 @@ def create():
         availability_rules = request.form.get('availability_rules', '').strip()
         is_restricted = request.form.get('is_restricted') == 'on'
         status = request.form.get('status', 'draft')
+
+        # Availability schedule fields
+        schedule_template = request.form.get('schedule_template', '').strip()
+        min_booking_minutes = request.form.get('min_booking_minutes', '30').strip()
+        max_booking_minutes = request.form.get('max_booking_minutes', '480').strip()
+        booking_increment_minutes = request.form.get('booking_increment_minutes', '30').strip()
+        buffer_minutes = request.form.get('buffer_minutes', '0').strip()
+        advance_booking_days = request.form.get('advance_booking_days', '90').strip()
+        min_lead_time_hours = request.form.get('min_lead_time_hours', '0').strip()
 
         if category not in categories:
             flash('Please choose a valid category.', 'danger')
@@ -448,7 +502,72 @@ def create():
                     if cleaned:
                         tokens.append(cleaned)
             equipment_list = ', '.join(tokens) if tokens else None
-        
+
+        # Validate and process booking rules
+        min_booking_val = 30
+        if min_booking_minutes:
+            valid, result = Validator.validate_integer(min_booking_minutes, 15, 1440, "Minimum booking duration")
+            if not valid:
+                flash(result, 'danger')
+                return render_template('resources/create.html', categories=categories, schedule_templates=schedule_templates, form_data=request.form)
+            min_booking_val = result
+
+        max_booking_val = 480
+        if max_booking_minutes:
+            valid, result = Validator.validate_integer(max_booking_minutes, 30, 10080, "Maximum booking duration")
+            if not valid:
+                flash(result, 'danger')
+                return render_template('resources/create.html', categories=categories, schedule_templates=schedule_templates, form_data=request.form)
+            max_booking_val = result
+
+        if max_booking_val < min_booking_val:
+            flash('Maximum booking duration must be greater than minimum', 'danger')
+            return render_template('resources/create.html', categories=categories, schedule_templates=schedule_templates, form_data=request.form)
+
+        increment_val = 30
+        if booking_increment_minutes:
+            valid, result = Validator.validate_integer(booking_increment_minutes, 15, 360, "Booking increment")
+            if not valid:
+                flash(result, 'danger')
+                return render_template('resources/create.html', categories=categories, schedule_templates=schedule_templates, form_data=request.form)
+            increment_val = result
+
+        buffer_val = 0
+        if buffer_minutes:
+            valid, result = Validator.validate_integer(buffer_minutes, 0, 120, "Buffer time")
+            if not valid:
+                flash(result, 'danger')
+                return render_template('resources/create.html', categories=categories, schedule_templates=schedule_templates, form_data=request.form)
+            buffer_val = result
+
+        advance_val = 90
+        if advance_booking_days:
+            valid, result = Validator.validate_integer(advance_booking_days, 1, 365, "Advance booking limit")
+            if not valid:
+                flash(result, 'danger')
+                return render_template('resources/create.html', categories=categories, schedule_templates=schedule_templates, form_data=request.form)
+            advance_val = result
+
+        lead_time_val = 0
+        if min_lead_time_hours:
+            valid, result = Validator.validate_integer(min_lead_time_hours, 0, 168, "Minimum lead time")
+            if not valid:
+                flash(result, 'danger')
+                return render_template('resources/create.html', categories=categories, schedule_templates=schedule_templates, form_data=request.form)
+            lead_time_val = result
+
+        # Process availability schedule (REQUIRED)
+        if not schedule_template:
+            flash('Please select an operating hours schedule', 'danger')
+            return render_template('resources/create.html', categories=categories, schedule_templates=schedule_templates, form_data=request.form)
+
+        if schedule_template not in SCHEDULE_TEMPLATES:
+            flash('Invalid schedule template selected', 'danger')
+            return render_template('resources/create.html', categories=categories, schedule_templates=schedule_templates, form_data=request.form)
+
+        schedule = get_template_schedule(schedule_template)
+        schedule_json = json.dumps(schedule) if schedule else None
+
         # Handle file upload
         image_paths = []
         if 'images' in request.files:
@@ -457,10 +576,10 @@ def create():
                 image_paths = save_uploaded_images(files)
             except ValueError as upload_error:
                 flash(str(upload_error), 'danger')
-                return render_template('resources/create.html', categories=categories, form_data=request.form)
-        
+                return render_template('resources/create.html', categories=categories, schedule_templates=schedule_templates, form_data=request.form)
+
         images_str = ','.join(image_paths) if image_paths else None
-        
+
         try:
             resource = ResourceDAL.create_resource(
                 owner_id=current_user.user_id,
@@ -473,15 +592,22 @@ def create():
                 equipment=equipment_list,
                 availability_rules=availability_rules,
                 is_restricted=is_restricted,
-                status=status
+                status=status,
+                availability_schedule=schedule_json,
+                min_booking_minutes=min_booking_val,
+                max_booking_minutes=max_booking_val,
+                booking_increment_minutes=increment_val,
+                buffer_minutes=buffer_val,
+                advance_booking_days=advance_val,
+                min_lead_time_hours=lead_time_val
             )
             flash('Resource created successfully!', 'success')
             return redirect(url_for('resource.detail', resource_id=resource.resource_id))
         except Exception as e:
             flash(f'Error creating resource: {str(e)}', 'danger')
-            return render_template('resources/create.html', categories=categories, form_data=request.form)
-    
-    return render_template('resources/create.html', categories=categories, form_data={})
+            return render_template('resources/create.html', categories=categories, schedule_templates=schedule_templates, form_data=request.form)
+
+    return render_template('resources/create.html', categories=categories, schedule_templates=schedule_templates, form_data={})
 
 @resource_bp.route('/<int:resource_id>/edit', methods=['GET', 'POST'])
 @login_required

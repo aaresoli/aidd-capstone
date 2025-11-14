@@ -133,15 +133,21 @@ def create_app():
                 'total_reviews': total_reviews,
                 'is_top_rated': avg_rating >= top_rated_threshold and total_reviews >= 3
             })
+
+        # Get total count of published resources for homepage stats
+        all_resources = ResourceDAL.get_all_resources(status='published')
+        total_resources_count = len(all_resources) if all_resources else 0
+
         return render_template('index.html',
-                               featured_resources=resources_with_ratings)
+                               featured_resources=resources_with_ratings,
+                               total_resources_count=total_resources_count)
     
     @app.route('/dashboard')
     def dashboard():
         """User dashboard"""
         if not current_user.is_authenticated:
             return redirect(url_for('auth.login'))
-        
+
         my_bookings = BookingDAL.get_bookings_by_requester(current_user.user_id)
         my_resources = ResourceDAL.get_resources_by_owner(current_user.user_id)
         google_connection = CalendarCredentialDAL.get_credentials(current_user.user_id, GOOGLE_PROVIDER)
@@ -153,6 +159,10 @@ def create_app():
         calendar_last_synced = (
             google_connection.get('updated_at') if google_connection else None
         )
+
+        # Get active waitlist entries
+        from src.data_access.waitlist_dal import WaitlistDAL
+        my_waitlist = WaitlistDAL.get_entries_by_requester(current_user.user_id, statuses=['active'])
 
         # Cache resources so we can display titles in the dashboard
         resource_cache = {resource.resource_id: resource for resource in my_resources}
@@ -221,6 +231,16 @@ def create_app():
 
         most_used_category = max(category_counts.items(), key=lambda x: x[1])[0] if category_counts else None
 
+        # Enrich waitlist entries with resource details
+        waitlist_with_resources = []
+        for entry in my_waitlist:
+            resource = resolve_resource(entry.resource_id)
+            waitlist_with_resources.append({
+                'entry': entry,
+                'resource_title': resource.title if resource else f"Resource #{entry.resource_id}",
+                'resource': resource
+            })
+
         return render_template(
             'dashboard/dashboard.html',
             my_bookings=my_bookings,
@@ -235,7 +255,8 @@ def create_app():
             recent_message_threads=recent_threads,
             total_message_threads=len(message_threads),
             booking_stats=booking_stats,
-            most_used_category=most_used_category
+            most_used_category=most_used_category,
+            my_waitlist=waitlist_with_resources
         )
     
     # Error handlers

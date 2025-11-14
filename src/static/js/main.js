@@ -22,10 +22,15 @@ document.addEventListener('DOMContentLoaded', () => {
     initProgressiveImageLoading();
     initCarouselLazyLoading();
     initFormPlaceholderAnimations();
+    initWaitlistOfferExperience();
 });
 
 function initAutoDismissAlerts() {
     document.querySelectorAll('.alert').forEach(alert => {
+        if (alert.dataset.autodismiss === 'false' || alert.classList.contains('alert-sticky')) {
+            return;
+        }
+        const dismissAfter = parseInt(alert.dataset.dismissAfter || '5000', 10);
         setTimeout(() => {
             try {
                 const instance = bootstrap.Alert.getOrCreateInstance(alert);
@@ -33,7 +38,7 @@ function initAutoDismissAlerts() {
             } catch (err) {
                 console.error('Failed to dismiss alert', err);
             }
-        }, 5000);
+        }, Number.isNaN(dismissAfter) ? 5000 : dismissAfter);
     });
 }
 
@@ -673,4 +678,38 @@ function initFormPlaceholderAnimations() {
             input.parentElement?.classList.add('input-focused');
         }
     });
+}
+
+function initWaitlistOfferExperience() {
+    const waitlistOffer = document.querySelector('[data-waitlist-offer]');
+    if (!waitlistOffer) return;
+
+    waitlistOffer.setAttribute('tabindex', '-1');
+
+    const highlightOffer = () => {
+        waitlistOffer.classList.add('waitlist-offer-highlight');
+        setTimeout(() => waitlistOffer.classList.remove('waitlist-offer-highlight'), 4500);
+    };
+
+    setTimeout(() => {
+        waitlistOffer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        try {
+            waitlistOffer.focus({ preventScroll: true });
+        } catch (err) {
+            waitlistOffer.focus();
+        }
+        highlightOffer();
+    }, 250);
+
+    const adjustTrigger = waitlistOffer.querySelector('[data-waitlist-adjust]');
+    if (adjustTrigger) {
+        adjustTrigger.addEventListener('click', () => {
+            const startInput = document.getElementById('start_datetime');
+            if (startInput) {
+                startInput.focus();
+            }
+            waitlistOffer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            highlightOffer();
+        });
+    }
 }

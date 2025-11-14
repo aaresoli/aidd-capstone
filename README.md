@@ -85,6 +85,14 @@ flask run
 7. **Access the application:**
 Open your browser and navigate to `http://localhost:5000`
 
+### Email Delivery Setup
+
+Registration verification messages and transactional notifications are sent through SMTP when credentials are provided. By default they are only logged to the `notifications` table (and console) so development environments stay self-contained.
+
+1. Set `EMAIL_NOTIFICATIONS_ENABLED=true` in your `.env`.
+2. Provide `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, and `MAIL_DEFAULT_SENDER` (plus `MAIL_USE_TLS`/`MAIL_USE_SSL` if your provider requires specific security).
+3. Restart `flask run`. Every call to `NotificationService.send_notification` will now attempt real delivery while still persisting the message for the in-app feed.
+
 ### Calendar Sync Setup
 
 To enable Google Calendar integration you will need OAuth credentials from the [Google Cloud Console](https://console.cloud.google.com):

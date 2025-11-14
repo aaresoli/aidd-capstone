@@ -8,9 +8,10 @@ from flask_login import UserMixin
 
 class User(UserMixin):
     """User model representing students, staff, and admins"""
-    def __init__(self, user_id=None, name=None, email=None, password_hash=None, 
+    def __init__(self, user_id=None, name=None, email=None, password_hash=None,
                  role='student', profile_image=None, department=None, created_at=None,
-                 is_suspended=0):
+                 is_suspended=0, email_verified=0, verification_token=None,
+                 verification_token_expiry=None):
         self.user_id = user_id
         self.name = name
         self.email = email
@@ -20,6 +21,9 @@ class User(UserMixin):
         self.department = department
         self.created_at = created_at or datetime.now()
         self.is_suspended = bool(is_suspended)
+        self.email_verified = bool(email_verified)
+        self.verification_token = verification_token
+        self.verification_token_expiry = verification_token_expiry
     
     def get_id(self):
         """Return the user identifier used by Flask-Login"""
@@ -35,7 +39,10 @@ class User(UserMixin):
             'profile_image': self.profile_image,
             'department': self.department,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
-            'is_suspended': self.is_suspended
+            'is_suspended': self.is_suspended,
+            'email_verified': self.email_verified,
+            'verification_token': self.verification_token,
+            'verification_token_expiry': self.verification_token_expiry
         }
 
 
@@ -44,7 +51,10 @@ class Resource:
     def __init__(self, resource_id=None, owner_id=None, title=None, description=None,
                  category=None, location=None, capacity=None, images=None,
                  equipment=None, availability_rules=None, is_restricted=0,
-                 status='draft', created_at=None):
+                 status='draft', created_at=None, availability_schedule=None,
+                 min_booking_minutes=None, max_booking_minutes=None,
+                 booking_increment_minutes=None, buffer_minutes=None,
+                 advance_booking_days=None, min_lead_time_hours=None):
         self.resource_id = resource_id
         self.owner_id = owner_id
         self.title = title
@@ -58,6 +68,13 @@ class Resource:
         self.is_restricted = bool(is_restricted)
         self.status = status  # 'draft', 'published', 'archived'
         self.created_at = created_at or datetime.now()
+        self.availability_schedule = availability_schedule  # JSON weekly schedule
+        self.min_booking_minutes = min_booking_minutes
+        self.max_booking_minutes = max_booking_minutes
+        self.booking_increment_minutes = booking_increment_minutes
+        self.buffer_minutes = buffer_minutes
+        self.advance_booking_days = advance_booking_days
+        self.min_lead_time_hours = min_lead_time_hours
     
     def to_dict(self):
         """Convert resource to dictionary"""
@@ -74,7 +91,14 @@ class Resource:
             'equipment': self.equipment,
             'is_restricted': self.is_restricted,
             'status': self.status,
-            'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at
+            'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
+            'availability_schedule': self.availability_schedule,
+            'min_booking_minutes': self.min_booking_minutes,
+            'max_booking_minutes': self.max_booking_minutes,
+            'booking_increment_minutes': self.booking_increment_minutes,
+            'buffer_minutes': self.buffer_minutes,
+            'advance_booking_days': self.advance_booking_days,
+            'min_lead_time_hours': self.min_lead_time_hours
         }
 
 
@@ -83,7 +107,8 @@ class Booking:
     def __init__(self, booking_id=None, resource_id=None, requester_id=None,
                  start_datetime=None, end_datetime=None, status='pending',
                  recurrence_rule=None, created_at=None, updated_at=None,
-                 decision_notes=None, decision_by=None, decision_timestamp=None):
+                 decision_notes=None, decision_by=None, decision_timestamp=None,
+                 requester_name=None):
         self.booking_id = booking_id
         self.resource_id = resource_id
         self.requester_id = requester_id
@@ -96,6 +121,7 @@ class Booking:
         self.decision_notes = decision_notes
         self.decision_by = decision_by
         self.decision_timestamp = decision_timestamp
+        self.requester_name = requester_name  # Populated via JOIN, not stored in DB
     
     def to_dict(self):
         """Convert booking to dictionary"""

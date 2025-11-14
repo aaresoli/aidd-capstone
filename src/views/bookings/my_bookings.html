@@ -17,6 +17,55 @@
         </div>
     </div>
 
+    {% if my_waitlist %}
+    <div class="alert alert-info mb-4">
+        <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-bell-fill"></i>
+            <div class="flex-grow-1">
+                <strong>You have {{ my_waitlist|length }} active waitlist {{ 'entry' if my_waitlist|length == 1 else 'entries' }}.</strong>
+                <p class="mb-0 small">These will automatically convert to bookings when slots become available.</p>
+            </div>
+        </div>
+        <div class="table-responsive mt-3">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Resource</th>
+                        <th>Time Slot</th>
+                        <th>Added</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in my_waitlist %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.resource_title }}</strong><br>
+                            <span class="text-muted small">{{ item.resource_category }}</span>
+                        </td>
+                        <td class="text-nowrap small">
+                            {{ item.entry.start_datetime|datetime_format('%b %d, %I:%M %p') }}<br>
+                            to {{ item.entry.end_datetime|datetime_format('%I:%M %p') }}
+                        </td>
+                        <td class="small text-muted">
+                            {{ item.entry.created_at|relative_time }}
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('booking.cancel_waitlist', entry_id=item.entry.entry_id) }}" class="mb-0">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove from waitlist?')">
+                                    <i class="bi bi-x-circle"></i> Remove
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="mb-3">
         <div class="btn-group" role="group" aria-label="Filter booking statuses">
             {% for status in valid_filters %}

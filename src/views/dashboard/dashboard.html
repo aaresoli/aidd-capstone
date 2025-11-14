@@ -92,6 +92,48 @@
         </div>
     </section>
 
+    {% if my_waitlist %}
+    <section class="mb-4" aria-labelledby="waitlist-heading">
+        <div class="dashboard-card">
+            <div class="card-head">
+                <h2 class="h5 mb-0" id="waitlist-heading">
+                    <i class="bi bi-bell-fill text-warning"></i> Active Waitlist
+                </h2>
+                <span class="text-muted small">{{ my_waitlist|length }} pending {{ 'request' if my_waitlist|length == 1 else 'requests' }}</span>
+            </div>
+            <p class="text-muted mb-3">You'll be automatically booked when these slots become available.</p>
+            <ul class="list-group list-group-flush">
+                {% for item in my_waitlist %}
+                <li class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                            <a href="{{ url_for('resource.detail', resource_id=item.entry.resource_id) }}" class="text-decoration-none">
+                                <strong>{{ item.resource_title }}</strong>
+                            </a>
+                            {% if item.resource %}
+                            <div class="text-muted small">{{ item.resource.category or 'General' }} &middot; {{ item.resource.location or 'Location TBD' }}</div>
+                            {% endif %}
+                            <div class="text-muted small mt-1">
+                                <i class="bi bi-calendar-event"></i> {{ item.entry.start_datetime|datetime_format }} &ndash; {{ item.entry.end_datetime|datetime_format }}
+                            </div>
+                            <div class="text-muted small">
+                                <i class="bi bi-clock"></i> Added {{ item.entry.created_at|relative_time }}
+                            </div>
+                        </div>
+                        <form method="POST" action="{{ url_for('booking.cancel_waitlist', entry_id=item.entry.entry_id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove from waitlist?')">
+                                <i class="bi bi-x-circle"></i> Remove
+                            </button>
+                        </form>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </section>
+    {% endif %}
+
     <section class="mb-4" aria-labelledby="bookings-messages-heading">
         <h2 class="visually-hidden" id="bookings-messages-heading">Bookings and messages</h2>
         <div class="row g-4 align-items-stretch">

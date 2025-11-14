@@ -30,6 +30,11 @@ from src.utils.datetime_helpers import (
     describe_recurrence,
     parse_datetime,
 )
+from src.utils.availability import (
+    parse_schedule,
+    validate_booking_times,
+    get_next_available_slot
+)
 from src.data_access.calendar_dal import CalendarCredentialDAL, CalendarEventDAL
 from src.utils.calendar_sync import GOOGLE_PROVIDER
 from src.utils.permissions import can_manage_resource, can_view_booking, can_act_on_booking, is_admin
@@ -156,12 +161,25 @@ def my_bookings():
         'all': len(all_bookings)
     }
 
+    # Get active waitlist entries for the user
+    my_waitlist = WaitlistDAL.get_entries_by_requester(current_user.user_id, statuses=['active'])
+    waitlist_with_resources = []
+    for entry in my_waitlist:
+        resource = ResourceDAL.get_resource_by_id(entry.resource_id)
+        waitlist_with_resources.append({
+            'entry': entry,
+            'resource_title': resource.title if resource else f"Resource #{entry.resource_id}",
+            'resource_category': resource.category if resource else 'Unknown',
+            'resource': resource
+        })
+
     return render_template(
         'bookings/my_bookings.html',
         bookings=booking_list,
         selected_status=requested_filter,
         valid_filters=valid_filters,
-        status_counts=status_counts
+        status_counts=status_counts,
+        my_waitlist=waitlist_with_resources
     )
 
 @booking_bp.route('/create/<int:resource_id>', methods=['GET', 'POST'])
@@ -228,6 +246,24 @@ def create(resource_id):
         valid, error_msg = Validator.validate_datetime_range(start_dt, end_dt)
         if not valid:
             flash(error_msg, 'danger')
+            return render_form(request.form)
+
+        # Validate against resource availability schedule and booking rules
+        schedule = parse_schedule(getattr(resource, 'availability_schedule', None))
+        min_minutes = getattr(resource, 'min_booking_minutes', 30) or 30
+        max_minutes = getattr(resource, 'max_booking_minutes', 480) or 480
+        increment_minutes = getattr(resource, 'booking_increment_minutes', 30) or 30
+        lead_time_hours = getattr(resource, 'min_lead_time_hours', 0) or 0
+
+        valid, availability_error = validate_booking_times(
+            start_dt, end_dt, schedule,
+            min_minutes=min_minutes,
+            max_minutes=max_minutes,
+            increment_minutes=increment_minutes,
+            lead_time_hours=lead_time_hours
+        )
+        if not valid:
+            flash(availability_error, 'danger')
             return render_form(request.form)
 
         occurrences = [(start_dt, end_dt)]

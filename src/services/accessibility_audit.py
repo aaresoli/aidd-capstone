@@ -36,7 +36,7 @@ DEFAULT_THEME_CHECKS: Tuple[Dict[str, str], ...] = (
     {
         'name': 'Card borders vs. surface',
         'usage': 'Muted borders on white cards.',
-        'foreground': '#eadfd3',
+        'foreground': '#979087',
         'background': '#ffffff',
         'min_ratio': 3.0  # large text/graphic elements
     },
