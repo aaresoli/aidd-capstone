@@ -345,4 +345,4 @@ def init_database():
         ''')
 
         conn.commit()
-        print("✓ Database initialized successfully")
+        print("[OK] Database initialized successfully")

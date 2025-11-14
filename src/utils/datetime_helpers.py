@@ -90,7 +90,10 @@ def build_booking_calendar(bookings: Iterable, month_token: Optional[str] = None
 
 
 def humanize_datetime(value) -> str:
-    """Render datetime objects or ISO strings into human-friendly text."""
+    """Render datetime objects or ISO strings into human-friendly text in local timezone."""
+    from zoneinfo import ZoneInfo
+    from src.config import Config
+    
     if isinstance(value, datetime):
         dt_obj = value
     else:
@@ -98,7 +101,16 @@ def humanize_datetime(value) -> str:
             dt_obj = datetime.fromisoformat(str(value))
         except ValueError:
             return str(value)
-    return dt_obj.strftime('%B %d, %Y %I:%M %p')
+    
+    # If datetime is naive (from database), assume it's UTC and convert to local
+    if dt_obj.tzinfo is None:
+        dt_obj = dt_obj.replace(tzinfo=ZoneInfo('UTC'))
+    
+    # Convert to local timezone for display
+    local_tz = ZoneInfo(Config.TIMEZONE)
+    dt_local = dt_obj.astimezone(local_tz)
+    
+    return dt_local.strftime('%B %d, %Y %I:%M %p')
 
 
 def describe_recurrence(rule: Optional[str]):
@@ -119,11 +131,35 @@ def describe_recurrence(rule: Optional[str]):
     return frequency or rule
 
 
-def parse_datetime(value):
-    """Parse ISO strings or datetime objects into datetime instances."""
+def parse_datetime(value, convert_to_local=False):
+    """
+    Parse ISO strings or datetime objects into datetime instances.
+    
+    Args:
+        value: datetime object or ISO string
+        convert_to_local: If True, convert from UTC to local timezone
+    
+    Returns:
+        datetime object (naive UTC by default, or timezone-aware local if convert_to_local=True)
+    """
     if isinstance(value, datetime):
-        return value
-    try:
-        return datetime.fromisoformat(str(value))
-    except ValueError:
-        return None
+        dt = value
+    else:
+        try:
+            dt = datetime.fromisoformat(str(value))
+        except ValueError:
+            return None
+    
+    if convert_to_local:
+        from zoneinfo import ZoneInfo
+        from src.config import Config
+        
+        # If naive, assume it's UTC
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo('UTC'))
+        
+        # Convert to local timezone
+        local_tz = ZoneInfo(Config.TIMEZONE)
+        return dt.astimezone(local_tz)
+    
+    return dt

@@ -31,7 +31,13 @@
                                 {% elif '/' in trimmed %}
                                     {% set image_src = url_for('static', filename=trimmed) %}
                                 {% else %}
-                                    {% set image_src = url_for('static', filename='uploads/' + trimmed) %}
+                                    {# Check if image has timestamp prefix (uploaded) or is a simple name (sample image) #}
+                                    {% set has_timestamp = trimmed|length > 15 and trimmed[8:9] == '_' %}
+                                    {% if has_timestamp %}
+                                        {% set image_src = url_for('static', filename='uploads/' + trimmed) %}
+                                    {% else %}
+                                        {% set image_src = url_for('static', filename='images/' + trimmed) %}
+                                    {% endif %}
                                 {% endif %}
                                 <div class="carousel-item {% if loop.first %}active{% endif %}">
                                     <img {% if loop.first %}src="{{ image_src }}"{% else %}data-src="{{ image_src }}" loading="lazy"{% endif %}

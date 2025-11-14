@@ -2,6 +2,7 @@
 Sample data helpers
 Populate the database with Indiana University Bloomington themed content for demos.
 """
+import json
 from datetime import datetime, timedelta
 from src.data_access.user_dal import UserDAL
 from src.data_access.resource_dal import ResourceDAL
@@ -62,6 +63,15 @@ SAMPLE_RESOURCES = [
         'capacity': 10,
         'equipment': 'Dual 32" displays, HDMI/USB-C, movable whiteboards, Zoom Room kit',
         'availability_rules': 'Sunday–Thursday 7:00 AM – 11:00 PM | Friday–Saturday 7:00 AM – 8:00 PM',
+        'availability_schedule': {
+            'monday': [{'start': '07:00', 'end': '23:00'}],
+            'tuesday': [{'start': '07:00', 'end': '23:00'}],
+            'wednesday': [{'start': '07:00', 'end': '23:00'}],
+            'thursday': [{'start': '07:00', 'end': '23:00'}],
+            'friday': [{'start': '07:00', 'end': '20:00'}],
+            'saturday': [{'start': '07:00', 'end': '20:00'}],
+            'sunday': [{'start': '07:00', 'end': '23:00'}]
+        },
         'is_restricted': False,
         'owner_email': 'staff@iu.edu',
         'images': 'images/wells.jpg'
@@ -77,6 +87,15 @@ SAMPLE_RESOURCES = [
         'capacity': 24,
         'equipment': '3D printers, Glowforge laser cutter, PCB rework station, Oculus headsets',
         'availability_rules': 'Weekdays 9:00 AM – 9:00 PM with staff present; reservations limited to 3 hours',
+        'availability_schedule': {
+            'monday': [{'start': '09:00', 'end': '21:00'}],
+            'tuesday': [{'start': '09:00', 'end': '21:00'}],
+            'wednesday': [{'start': '09:00', 'end': '21:00'}],
+            'thursday': [{'start': '09:00', 'end': '21:00'}],
+            'friday': [{'start': '09:00', 'end': '21:00'}],
+            'saturday': [],
+            'sunday': []
+        },
         'is_restricted': True,
         'owner_email': 'staff@iu.edu',
         'images': 'images/luddy.jpg'
@@ -92,6 +111,15 @@ SAMPLE_RESOURCES = [
         'capacity': 3200,
         'equipment': 'Concert-grade audio, theatrical lighting, dual projection, Steinway grand piano',
         'availability_rules': 'Submit requests at least 14 days in advance; staff approval required',
+        'availability_schedule': {
+            'monday': [{'start': '08:00', 'end': '22:00'}],
+            'tuesday': [{'start': '08:00', 'end': '22:00'}],
+            'wednesday': [{'start': '08:00', 'end': '22:00'}],
+            'thursday': [{'start': '08:00', 'end': '22:00'}],
+            'friday': [{'start': '08:00', 'end': '22:00'}],
+            'saturday': [{'start': '10:00', 'end': '22:00'}],
+            'sunday': [{'start': '10:00', 'end': '22:00'}]
+        },
         'is_restricted': True,
         'owner_email': 'admin@iu.edu',
         'images': 'images/auditorium.jpg'
@@ -107,6 +135,15 @@ SAMPLE_RESOURCES = [
         'capacity': 6,
         'equipment': 'RODECaster Pro II, Shure SM7B mics, 4K PTZ camera, acoustic treatment, lighting grid',
         'availability_rules': 'Bookings auto-approved for staff; students require a Kelley faculty sponsor',
+        'availability_schedule': {
+            'monday': [{'start': '08:00', 'end': '20:00'}],
+            'tuesday': [{'start': '08:00', 'end': '20:00'}],
+            'wednesday': [{'start': '08:00', 'end': '20:00'}],
+            'thursday': [{'start': '08:00', 'end': '20:00'}],
+            'friday': [{'start': '08:00', 'end': '20:00'}],
+            'saturday': [{'start': '10:00', 'end': '18:00'}],
+            'sunday': []
+        },
         'is_restricted': True,
         'owner_email': 'admin@iu.edu',
         'images': 'images/podcast.jpg'
@@ -122,6 +159,15 @@ SAMPLE_RESOURCES = [
         'capacity': 150,
         'equipment': 'Scoreboard, portable PA, divider netting, rolling bleachers',
         'availability_rules': 'Bookings available in 90-minute blocks; facility team confirms within 2 business days',
+        'availability_schedule': {
+            'monday': [{'start': '06:00', 'end': '23:00'}],
+            'tuesday': [{'start': '06:00', 'end': '23:00'}],
+            'wednesday': [{'start': '06:00', 'end': '23:00'}],
+            'thursday': [{'start': '06:00', 'end': '23:00'}],
+            'friday': [{'start': '06:00', 'end': '23:00'}],
+            'saturday': [{'start': '08:00', 'end': '22:00'}],
+            'sunday': [{'start': '08:00', 'end': '22:00'}]
+        },
         'is_restricted': False,
         'owner_email': 'staff@iu.edu',
         'images': 'images/srsc.jpg'
@@ -137,6 +183,15 @@ SAMPLE_RESOURCES = [
         'capacity': 120,
         'equipment': 'Dual laser projectors, zoned audio, modular tables, on-call catering',
         'availability_rules': 'Reservations approved by the IMU events desk; submit at least 7 days ahead',
+        'availability_schedule': {
+            'monday': [{'start': '08:00', 'end': '22:00'}],
+            'tuesday': [{'start': '08:00', 'end': '22:00'}],
+            'wednesday': [{'start': '08:00', 'end': '22:00'}],
+            'thursday': [{'start': '08:00', 'end': '22:00'}],
+            'friday': [{'start': '08:00', 'end': '22:00'}],
+            'saturday': [{'start': '09:00', 'end': '20:00'}],
+            'sunday': [{'start': '09:00', 'end': '20:00'}]
+        },
         'is_restricted': True,
         'owner_email': 'staff@iu.edu',
         'images': 'images/georgian.jpg'
@@ -461,6 +516,12 @@ def ensure_sample_content():
         owner = user_lookup.get(resource['owner_email'])
         if not owner:
             continue
+        
+        # Convert availability_schedule dict to JSON string if present
+        availability_schedule_json = None
+        if 'availability_schedule' in resource and resource['availability_schedule']:
+            availability_schedule_json = json.dumps(resource['availability_schedule'])
+        
         created = ResourceDAL.create_resource(
             owner_id=owner.user_id,
             title=resource['title'],
@@ -472,7 +533,8 @@ def ensure_sample_content():
             equipment=resource['equipment'],
             availability_rules=resource['availability_rules'],
             is_restricted=resource['is_restricted'],
-            status='published'
+            status='published',
+            availability_schedule=availability_schedule_json
         )
         resource_lookup[resource['title']] = created
         created_count += 1
@@ -522,14 +584,14 @@ def ensure_sample_content():
     seed_flagged_messages(user_lookup, resource_lookup)
 
     if created_count:
-        print(f'✓ Added {created_count} IU Bloomington sample resources')
+        print(f'[OK] Added {created_count} IU Bloomington sample resources')
     else:
-        print('✓ Sample resources already present')
+        print('[OK] Sample resources already present')
     
     if draft_count:
-        print(f'✓ Added {draft_count} draft resources')
+        print(f'[OK] Added {draft_count} draft resources')
     else:
-        print('✓ Draft resources already present')
+        print('[OK] Draft resources already present')
 
 
 def seed_sample_messages(user_lookup, resource_lookup):
@@ -756,7 +818,7 @@ def seed_sample_bookings(user_lookup, resource_lookup):
             )
     
     if booking_count > 0:
-        print(f'✓ Created {booking_count} sample bookings')
+        print(f'[OK] Created {booking_count} sample bookings')
 
 
 def seed_additional_reviews(user_lookup, resource_lookup):
@@ -821,7 +883,7 @@ def seed_additional_reviews(user_lookup, resource_lookup):
                 review_count += 1
     
     if review_count > 0:
-        print(f'✓ Added {review_count} additional reviews')
+        print(f'[OK] Added {review_count} additional reviews')
     
     # Add reviews for completed bookings
     all_bookings = []
@@ -842,7 +904,7 @@ def seed_additional_reviews(user_lookup, resource_lookup):
             completed_review_count += 1
     
     if completed_review_count > 0:
-        print(f'✓ Added {completed_review_count} reviews for completed bookings')
+        print(f'[OK] Added {completed_review_count} reviews for completed bookings')
 
 
 def seed_additional_messages(user_lookup, resource_lookup):
@@ -962,7 +1024,7 @@ def seed_additional_messages(user_lookup, resource_lookup):
             message_count += 1
     
     if message_count > 0:
-        print(f'✓ Added {message_count} additional messages')
+        print(f'[OK] Added {message_count} additional messages')
 
 
 def seed_notifications(user_lookup, resource_lookup):
@@ -1032,7 +1094,7 @@ def seed_notifications(user_lookup, resource_lookup):
             notification_count += 1
     
     if notification_count > 0:
-        print(f'✓ Created {notification_count} sample notifications')
+        print(f'[OK] Created {notification_count} sample notifications')
 
 
 def seed_flagged_reviews(user_lookup, resource_lookup):
@@ -1147,7 +1209,7 @@ def seed_flagged_reviews(user_lookup, resource_lookup):
                     break
     
     if flagged_count > 0:
-        print(f'✓ Created {flagged_count} flagged reviews for moderation')
+        print(f'[OK] Created {flagged_count} flagged reviews for moderation')
 
 
 def seed_flagged_messages(user_lookup, resource_lookup):
@@ -1253,4 +1315,4 @@ def seed_flagged_messages(user_lookup, resource_lookup):
                 flagged_count += 1
     
     if flagged_count > 0:
-        print(f'✓ Created {flagged_count} flagged messages for moderation')
+        print(f'[OK] Created {flagged_count} flagged messages for moderation')

@@ -55,14 +55,14 @@ def add_performance_indexes():
 
                 if cursor.fetchone() is None:
                     cursor.execute(f'CREATE INDEX {index_name} ON {table_name}({column_name})')
-                    print(f'✓ Created index: {index_name} on {table_name}.{column_name}')
+                    print(f'[OK] Created index: {index_name} on {table_name}.{column_name}')
                 else:
-                    print(f'→ Index already exists: {index_name}')
+                    print(f'[SKIP] Index already exists: {index_name}')
             except Exception as e:
-                print(f'✗ Error creating index {index_name}: {e}')
+                print(f'[ERROR] Error creating index {index_name}: {e}')
 
         conn.commit()
-        print('\n✓ Database indexing completed!')
+        print('\n[OK] Database indexing completed!')
 
 if __name__ == '__main__':
     print('Adding performance indexes to database...\n')

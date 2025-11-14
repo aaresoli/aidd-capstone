@@ -97,7 +97,16 @@
                     {% elif '/' in first_image %}
                     {% set card_image = url_for('static', filename=first_image) %}
                     {% else %}
+                    {# Check if image has timestamp prefix (uploaded) or is a simple name (sample image) #}
+                    {# Uploaded images have format: YYYYMMDD_HHMMSS_filename.jpg (at least 15 chars with underscore at position 8) #}
+                    {% set has_timestamp = first_image|length > 15 and first_image[8:9] == '_' %}
+                    {% if has_timestamp %}
+                    {# Uploaded image with timestamp prefix - goes to uploads folder #}
                     {% set card_image = url_for('static', filename='uploads/' + first_image) %}
+                    {% else %}
+                    {# Sample image - goes to images folder #}
+                    {% set card_image = url_for('static', filename='images/' + first_image) %}
+                    {% endif %}
                     {% endif %}
                     {% if loop.index <= 6 %}
                     {# Eagerly load first 6 images for snappy initial display #}

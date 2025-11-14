@@ -49,8 +49,8 @@ from src.services.notification_center import NotificationCenter
 def create_app():
     """Application factory"""
     # Use absolute paths for static and template folders
-    static_folder = os.path.join(os.path.dirname(__file__), 'static')
-    template_folder = os.path.join(os.path.dirname(__file__), 'views')
+    static_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), 'static'))
+    template_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), 'views'))
     app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
     app.config.from_object(Config)
 
@@ -275,62 +275,57 @@ def create_app():
     
     # Template filters
     def _parse_datetime(value):
-        """Convert ISO strings or datetimes into datetime objects."""
+        """Convert ISO strings or datetimes into datetime objects, and convert from UTC to local timezone."""
+        from zoneinfo import ZoneInfo
+        
         if isinstance(value, datetime):
-            return value
-        if isinstance(value, str):
+            dt = value
+        elif isinstance(value, str):
             try:
                 normalized = value.replace('Z', '+00:00')
-                return datetime.fromisoformat(normalized)
+                dt = datetime.fromisoformat(normalized)
             except ValueError:
                 return None
-        return None
-
-    def _convert_to_local_tz(dt_val):
-        """Convert UTC datetime to local timezone (Bloomington, Indiana - Eastern Time)"""
-        if dt_val is None:
+        else:
             return None
-        from zoneinfo import ZoneInfo
-        from src.config import Config
-
-        # If datetime is naive (no timezone), assume it's UTC
-        if dt_val.tzinfo is None:
-            dt_val = dt_val.replace(tzinfo=ZoneInfo('UTC'))
-
-        # Convert to local timezone
+        
+        # If datetime is naive (no timezone), assume it's UTC (from database)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo('UTC'))
+        
+        # Convert to local timezone for display
         local_tz = ZoneInfo(Config.TIMEZONE)
-        return dt_val.astimezone(local_tz)
+        dt_local = dt.astimezone(local_tz)
+        
+        return dt_local
 
     @app.template_filter('datetime_format')
     def datetime_format(value, format='%B %d, %Y at %I:%M %p'):
         """Format datetime for display in local timezone"""
-        dt_val = _parse_datetime(value) if not isinstance(value, datetime) else value
-        dt_local = _convert_to_local_tz(dt_val)
-        return dt_local.strftime(format) if dt_local else (value or '')
+        dt_val = _parse_datetime(value)
+        return dt_val.strftime(format) if dt_val else (value or '')
 
     @app.template_filter('relative_time')
     def relative_time(value):
-        """Return a short relative time string such as '2h ago' in local timezone."""
+        """Return a short relative time string such as '2h ago'."""
+        from zoneinfo import ZoneInfo
+        
         dt_val = _parse_datetime(value)
         if dt_val is None:
             return ''
-
-        # Convert both to local timezone for comparison
-        dt_local = _convert_to_local_tz(dt_val)
-        if dt_local is None:
-            return ''
-
-        from zoneinfo import ZoneInfo
-        from src.config import Config
-        now_local = datetime.now(ZoneInfo(Config.TIMEZONE))
-
-        delta = now_local - dt_local
+        
+        # Get current time in local timezone
+        now = datetime.now(ZoneInfo(Config.TIMEZONE))
+        delta = now - dt_val
         seconds = delta.total_seconds()
+        
         if seconds < 0:
             seconds = abs(seconds)
+        
         minutes = int(seconds // 60)
         hours = int(seconds // 3600)
         days = int(seconds // 86400)
+        
         if seconds < 60:
             return 'Just now'
         if minutes < 60:
@@ -341,7 +336,7 @@ def create_app():
             return 'Yesterday'
         if days < 7:
             return f"{days}d ago"
-        return dt_local.strftime('%b %d, %Y')
+        return dt_val.strftime('%b %d, %Y')
     
     @app.template_filter('nl2br')
     def nl2br(value):

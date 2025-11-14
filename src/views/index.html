@@ -94,7 +94,13 @@
                             {% elif '/' in first_image %}
                                 {% set image_src = url_for('static', filename=first_image) %}
                             {% else %}
-                                {% set image_src = url_for('static', filename='uploads/' + first_image) %}
+                                {# Check if image has timestamp prefix (uploaded) or is a simple name (sample image) #}
+                                {% set has_timestamp = first_image|length > 15 and first_image[8:9] == '_' %}
+                                {% if has_timestamp %}
+                                    {% set image_src = url_for('static', filename='uploads/' + first_image) %}
+                                {% else %}
+                                    {% set image_src = url_for('static', filename='images/' + first_image) %}
+                                {% endif %}
                             {% endif %}
                             <div class="resource-image" data-lazy-bg="{{ image_src }}"></div>
                         {% else %}
