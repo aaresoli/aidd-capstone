@@ -17,6 +17,7 @@ except ImportError:
 from src.data_access.resource_dal import ResourceDAL
 from src.data_access.review_dal import ReviewDAL
 from src.data_access.booking_dal import BookingDAL
+from src.data_access.user_dal import UserDAL
 from src.utils.validators import Validator
 from src.utils.permissions import user_has_role, can_manage_resource, is_admin, owns_resource
 from src.data_access.admin_log_dal import AdminLogDAL
@@ -421,7 +422,10 @@ def detail(resource_id):
     has_reviewed = False
     if current_user.is_authenticated:
         has_reviewed = ReviewDAL.user_has_reviewed(resource_id, current_user.user_id)
-    
+
+    # Get resource owner information
+    owner = UserDAL.get_user_by_id(resource.owner_id)
+
     # Add availability information
     from src.utils.availability import parse_schedule, format_schedule_display, get_booking_rules_summary
 
@@ -432,6 +436,7 @@ def detail(resource_id):
 
     return render_template('resources/detail.html',
                          resource=resource,
+                         owner=owner,
                          avg_rating=avg_rating,
                          review_count=review_count,
                          reviews=reviews,

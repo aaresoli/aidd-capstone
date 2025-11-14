@@ -28,6 +28,8 @@
                             {% if trimmed %}
                                 {% if trimmed.startswith('http') %}
                                     {% set image_src = trimmed %}
+                                {% elif '/' in trimmed %}
+                                    {% set image_src = url_for('static', filename=trimmed) %}
                                 {% else %}
                                     {% set image_src = url_for('static', filename='uploads/' + trimmed) %}
                                 {% endif %}
@@ -128,9 +130,13 @@
                         <i class="bi bi-clock"></i>
                         Operating Hours
                     </h3>
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>This resource is available for booking during the hours listed below.</strong>
+                    </div>
                     <div class="availability-schedule">
                         {% for line in schedule_display %}
-                        {% set parts = line.split(':') %}
+                        {% set parts = line.split(':', 1) %}
                         <div class="schedule-day">
                             <span class="schedule-day-name">{{ parts[0] }}</span>
                             {% if 'Closed' in line %}
@@ -341,8 +347,9 @@
                 <div class="owner-avatar">
                     <i class="bi bi-person-fill"></i>
                 </div>
-                <h5 class="owner-name">Resource Owner</h5>
-                <p class="owner-role text-muted">Listed on {{ resource.created_at|datetime_format }}</p>
+                <h5 class="owner-name">{{ owner.name if owner else 'Resource Owner' }}</h5>
+                <p class="owner-role text-muted">{{ owner.role|capitalize if owner else 'Owner' }}</p>
+                <p class="owner-meta text-muted small">Listed {{ resource.created_at|datetime_format('%B %d, %Y at %I:%M %p') if resource.created_at else 'Recently' }}</p>
                 {% if current_user.is_authenticated and current_user.user_id != resource.owner_id %}
                 <a href="{{ url_for('message.send', receiver_id=resource.owner_id, resource_id=resource.resource_id) }}" class="btn btn-sm btn-primary">
                     <i class="bi bi-envelope"></i> Send Message

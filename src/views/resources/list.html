@@ -39,10 +39,12 @@
             <div class="col-md-4">
                 <label for="available_from" class="form-label">Available from</label>
                 <input type="datetime-local" id="available_from" name="available_from" class="form-control" value="{{ selected_available_from }}">
+                <small class="text-muted">Eastern Time</small>
             </div>
             <div class="col-md-4">
                 <label for="available_until" class="form-label">Available until</label>
                 <input type="datetime-local" id="available_until" name="available_until" class="form-control" value="{{ selected_available_until }}">
+                <small class="text-muted">Eastern Time</small>
             </div>
             <div class="col-md-4 col-lg-3">
                 <label for="sort" class="form-label">Sort by</label>
@@ -92,6 +94,8 @@
                     {% if first_image %}
                     {% if first_image.startswith('http') %}
                     {% set card_image = first_image %}
+                    {% elif '/' in first_image %}
+                    {% set card_image = url_for('static', filename=first_image) %}
                     {% else %}
                     {% set card_image = url_for('static', filename='uploads/' + first_image) %}
                     {% endif %}

@@ -286,20 +286,45 @@ def create_app():
                 return None
         return None
 
+    def _convert_to_local_tz(dt_val):
+        """Convert UTC datetime to local timezone (Bloomington, Indiana - Eastern Time)"""
+        if dt_val is None:
+            return None
+        from zoneinfo import ZoneInfo
+        from src.config import Config
+
+        # If datetime is naive (no timezone), assume it's UTC
+        if dt_val.tzinfo is None:
+            dt_val = dt_val.replace(tzinfo=ZoneInfo('UTC'))
+
+        # Convert to local timezone
+        local_tz = ZoneInfo(Config.TIMEZONE)
+        return dt_val.astimezone(local_tz)
+
     @app.template_filter('datetime_format')
     def datetime_format(value, format='%B %d, %Y at %I:%M %p'):
-        """Format datetime for display"""
+        """Format datetime for display in local timezone"""
         dt_val = _parse_datetime(value) if not isinstance(value, datetime) else value
-        return dt_val.strftime(format) if dt_val else (value or '')
+        dt_local = _convert_to_local_tz(dt_val)
+        return dt_local.strftime(format) if dt_local else (value or '')
 
     @app.template_filter('relative_time')
     def relative_time(value):
-        """Return a short relative time string such as '2h ago'."""
+        """Return a short relative time string such as '2h ago' in local timezone."""
         dt_val = _parse_datetime(value)
         if dt_val is None:
             return ''
-        now = datetime.now(tz=dt_val.tzinfo) if dt_val.tzinfo else datetime.utcnow()
-        delta = now - (dt_val if dt_val.tzinfo else dt_val)
+
+        # Convert both to local timezone for comparison
+        dt_local = _convert_to_local_tz(dt_val)
+        if dt_local is None:
+            return ''
+
+        from zoneinfo import ZoneInfo
+        from src.config import Config
+        now_local = datetime.now(ZoneInfo(Config.TIMEZONE))
+
+        delta = now_local - dt_local
         seconds = delta.total_seconds()
         if seconds < 0:
             seconds = abs(seconds)
@@ -316,7 +341,7 @@ def create_app():
             return 'Yesterday'
         if days < 7:
             return f"{days}d ago"
-        return dt_val.strftime('%b %d, %Y')
+        return dt_local.strftime('%b %d, %Y')
     
     @app.template_filter('nl2br')
     def nl2br(value):

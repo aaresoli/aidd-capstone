@@ -64,7 +64,7 @@ SAMPLE_RESOURCES = [
         'availability_rules': 'Sunday–Thursday 7:00 AM – 11:00 PM | Friday–Saturday 7:00 AM – 8:00 PM',
         'is_restricted': False,
         'owner_email': 'staff@iu.edu',
-        'images': 'wells.jpg'
+        'images': 'images/wells.jpg'
     },
     {
         'title': 'Luddy School Prototyping Lab',
@@ -79,7 +79,7 @@ SAMPLE_RESOURCES = [
         'availability_rules': 'Weekdays 9:00 AM – 9:00 PM with staff present; reservations limited to 3 hours',
         'is_restricted': True,
         'owner_email': 'staff@iu.edu',
-        'images': 'luddy.jpg'
+        'images': 'images/luddy.jpg'
     },
     {
         'title': 'IU Auditorium Main Stage',
@@ -94,7 +94,7 @@ SAMPLE_RESOURCES = [
         'availability_rules': 'Submit requests at least 14 days in advance; staff approval required',
         'is_restricted': True,
         'owner_email': 'admin@iu.edu',
-        'images': 'auditorium.jpg'
+        'images': 'images/auditorium.jpg'
     },
     {
         'title': 'Kelley School Podcast Studio',
@@ -109,7 +109,7 @@ SAMPLE_RESOURCES = [
         'availability_rules': 'Bookings auto-approved for staff; students require a Kelley faculty sponsor',
         'is_restricted': True,
         'owner_email': 'admin@iu.edu',
-        'images': 'podcast.jpg'
+        'images': 'images/podcast.jpg'
     },
     {
         'title': 'SRSC Court 6 (Recreation Pickup)',
@@ -124,7 +124,7 @@ SAMPLE_RESOURCES = [
         'availability_rules': 'Bookings available in 90-minute blocks; facility team confirms within 2 business days',
         'is_restricted': False,
         'owner_email': 'staff@iu.edu',
-        'images': 'srsc.jpg'
+        'images': 'images/srsc.jpg'
     },
     {
         'title': 'IMU Georgian Room Collaboration Hall',
@@ -139,7 +139,7 @@ SAMPLE_RESOURCES = [
         'availability_rules': 'Reservations approved by the IMU events desk; submit at least 7 days ahead',
         'is_restricted': True,
         'owner_email': 'staff@iu.edu',
-        'images': 'georgian.jpg'
+        'images': 'images/georgian.jpg'
     }
 ]
 

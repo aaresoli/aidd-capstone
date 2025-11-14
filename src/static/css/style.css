@@ -3875,6 +3875,12 @@ body {
 .owner-role {
     font-size: 0.875rem;
     color: var(--muted);
+    margin-bottom: 0.5rem;
+}
+
+.owner-meta {
+    font-size: 0.8rem;
+    color: var(--muted);
     margin-bottom: 1rem;
 }
 

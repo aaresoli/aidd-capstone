@@ -11,6 +11,35 @@ def utc_now_naive() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
+def local_to_utc(dt: datetime) -> datetime:
+    """Convert local time (Bloomington, IN) to UTC naive datetime for database storage."""
+    from zoneinfo import ZoneInfo
+    from src.config import Config
+
+    # If already has timezone info, convert to UTC
+    if dt.tzinfo is not None:
+        return dt.astimezone(ZoneInfo('UTC')).replace(tzinfo=None)
+
+    # Otherwise, assume it's in local timezone
+    local_tz = ZoneInfo(Config.TIMEZONE)
+    dt_local = dt.replace(tzinfo=local_tz)
+    return dt_local.astimezone(ZoneInfo('UTC')).replace(tzinfo=None)
+
+
+def utc_to_local(dt: datetime) -> datetime:
+    """Convert UTC naive datetime to local timezone (Bloomington, IN)."""
+    from zoneinfo import ZoneInfo
+    from src.config import Config
+
+    # If naive, assume it's UTC
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo('UTC'))
+
+    # Convert to local timezone
+    local_tz = ZoneInfo(Config.TIMEZONE)
+    return dt.astimezone(local_tz)
+
+
 def build_booking_calendar(bookings: Iterable, month_token: Optional[str] = None):
     """Return a matrix describing a month view with booking counts per day."""
     if month_token:

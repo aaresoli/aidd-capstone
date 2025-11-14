@@ -56,10 +56,22 @@ class Validator:
     
     @staticmethod
     def validate_datetime(datetime_str, field_name="Date/Time"):
-        """Validate datetime string"""
+        """Validate datetime string and convert from local timezone to UTC"""
         try:
+            from zoneinfo import ZoneInfo
+            from src.config import Config
+
+            # Parse the datetime string (from datetime-local input)
             dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
-            return True, dt
+
+            # If datetime is naive (no timezone info from form), assume it's in local timezone
+            if dt.tzinfo is None:
+                local_tz = ZoneInfo(Config.TIMEZONE)
+                dt = dt.replace(tzinfo=local_tz)
+
+            # Convert to UTC and make naive for database storage
+            utc_dt = dt.astimezone(ZoneInfo('UTC')).replace(tzinfo=None)
+            return True, utc_dt
         except (ValueError, AttributeError):
             return False, f"{field_name} must be a valid date and time"
 
@@ -69,8 +81,8 @@ class Validator:
         Validate datetime range for bookings.
 
         Args:
-            start_dt: Start datetime object
-            end_dt: End datetime object
+            start_dt: Start datetime object (in UTC, naive)
+            end_dt: End datetime object (in UTC, naive)
             allow_past: Whether to allow dates in the past (default False)
             max_days_future: Maximum days in future allowed (default 365)
 
@@ -78,8 +90,11 @@ class Validator:
             Tuple (is_valid, error_message)
         """
         from datetime import datetime, timedelta
+        from zoneinfo import ZoneInfo
+        from src.config import Config
 
-        now = datetime.now()
+        # Get current time in UTC (naive) for comparison with database times
+        now = datetime.now(ZoneInfo('UTC')).replace(tzinfo=None)
 
         # Check end is after start
         if end_dt <= start_dt:

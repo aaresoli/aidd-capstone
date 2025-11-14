@@ -66,13 +66,17 @@ class Config:
     MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL', 'False').lower() == 'true'
     MAIL_TIMEOUT = int(os.environ.get('MAIL_TIMEOUT', 10))
 
+    # Timezone configuration
+    # Bloomington, Indiana is in Eastern Time Zone
+    TIMEZONE = os.environ.get('TIMEZONE', 'America/Indiana/Indianapolis')
+
     # Calendar integrations
     GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
     GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
     GOOGLE_OAUTH_REDIRECT_PATH = os.environ.get('GOOGLE_OAUTH_REDIRECT_PATH', '/calendar/google/callback')
     EXTERNAL_BASE_URL = os.environ.get('EXTERNAL_BASE_URL')
     GOOGLE_CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.events']
-    CALENDAR_DEFAULT_TIMEZONE = os.environ.get('CALENDAR_DEFAULT_TIMEZONE', 'America/New_York')
+    CALENDAR_DEFAULT_TIMEZONE = os.environ.get('CALENDAR_DEFAULT_TIMEZONE', 'America/Indiana/Indianapolis')
 
     # Local LLM settings (Ollama, LM Studio, etc.)
     LOCAL_LLM_BASE_URL = os.environ.get('LOCAL_LLM_BASE_URL')

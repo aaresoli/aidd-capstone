@@ -138,7 +138,9 @@ def validate_booking_times(
 
     Returns: (is_valid, error_message)
     """
-    now = datetime.now()
+    # Use UTC time (naive) for internal calculations since all DB times are UTC
+    from zoneinfo import ZoneInfo
+    now = datetime.now(ZoneInfo('UTC')).replace(tzinfo=None)
 
     # Check duration
     duration = (end_dt - start_dt).total_seconds() / 60
@@ -209,7 +211,9 @@ def get_next_available_slot(
         return None
 
     # Start from now
-    now = datetime.now()
+    # Use UTC time (naive) for internal calculations since all DB times are UTC
+    from zoneinfo import ZoneInfo
+    now = datetime.now(ZoneInfo('UTC')).replace(tzinfo=None)
     if start_from is None:
         start_from = now
 
