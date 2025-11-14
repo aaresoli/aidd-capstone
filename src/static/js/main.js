@@ -561,46 +561,8 @@ function initParallaxEffects() {
 }
 
 function initProgressiveImageLoading() {
-    // Lazy load images for better performance
-    const lazyImages = document.querySelectorAll('[data-lazy-bg], img[loading="lazy"]');
-
-    if (!lazyImages.length) return;
-
-    // Check for native lazy loading support
-    if ('loading' in HTMLImageElement.prototype) {
-        // Native lazy loading is supported, handle background images
-        lazyImages.forEach(img => {
-            if (img.hasAttribute('data-lazy-bg')) {
-                loadBackgroundImage(img);
-            }
-        });
-    } else {
-        // Fallback to Intersection Observer
-        const imageObserver = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-
-                    if (img.hasAttribute('data-lazy-bg')) {
-                        loadBackgroundImage(img);
-                    } else if (img.tagName === 'IMG' && img.dataset.src) {
-                        img.src = img.dataset.src;
-                        img.removeAttribute('data-src');
-                    }
-
-                    observer.unobserve(img);
-                }
-            });
-        }, {
-            rootMargin: '50px 0px',
-            threshold: 0.01
-        });
-
-        lazyImages.forEach(img => imageObserver.observe(img));
-    }
-
-    function loadBackgroundImage(element) {
-        const bgUrl = element.dataset.lazyBg;
+    // Shared function to load background images
+    function loadBackgroundImage(element, bgUrl) {
         if (!bgUrl) return;
 
         // Add loading class
@@ -612,7 +574,9 @@ function initProgressiveImageLoading() {
             element.style.backgroundImage = `url('${bgUrl}')`;
             element.classList.remove('loading-bg');
             element.classList.add('loaded-bg');
+            // Remove both lazy and eager attributes after loading
             element.removeAttribute('data-lazy-bg');
+            element.removeAttribute('data-eager-bg');
         };
         img.onerror = () => {
             element.classList.remove('loading-bg');
@@ -620,6 +584,45 @@ function initProgressiveImageLoading() {
         };
         img.src = bgUrl;
     }
+
+    // Eagerly load images marked for immediate display (first 6 visible images)
+    const eagerImages = document.querySelectorAll('[data-eager-bg]');
+    eagerImages.forEach(element => {
+        const bgUrl = element.dataset.eagerBg;
+        if (bgUrl) {
+            // Load immediately without waiting
+            loadBackgroundImage(element, bgUrl);
+        }
+    });
+
+    // Lazy load remaining images for better performance
+    const lazyImages = document.querySelectorAll('[data-lazy-bg], img[loading="lazy"]');
+
+    if (!lazyImages.length) return;
+
+    // Use Intersection Observer with larger rootMargin for earlier loading
+    const imageObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+
+                if (img.hasAttribute('data-lazy-bg')) {
+                    loadBackgroundImage(img, img.dataset.lazyBg);
+                } else if (img.tagName === 'IMG' && img.dataset.src) {
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                }
+
+                observer.unobserve(img);
+            }
+        });
+    }, {
+        // Increased rootMargin to start loading 200px before images enter viewport
+        rootMargin: '200px 0px',
+        threshold: 0.01
+    });
+
+    lazyImages.forEach(img => imageObserver.observe(img));
 }
 
 function initCarouselLazyLoading() {

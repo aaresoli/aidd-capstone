@@ -133,8 +133,19 @@ class ResourceDAL:
                 available_start, available_end
             ])
 
+        # Handle sort options that require joins
+        needs_booking_join = sort == 'most_booked'
+        needs_review_join = sort == 'top_rated'
+        
+        if needs_booking_join:
+            joins.append('LEFT JOIN bookings b ON r.resource_id = b.resource_id AND b.status IN ("approved", "completed")')
+        if needs_review_join:
+            joins.append('LEFT JOIN reviews rv ON r.resource_id = rv.resource_id AND rv.is_hidden = 0')
+        
         sort_map = {
             'recent': 'r.created_at DESC',
+            'most_booked': 'booking_count DESC, r.created_at DESC',
+            'top_rated': 'avg_rating DESC, review_count DESC, r.created_at DESC',
             'name_az': 'LOWER(r.title) ASC, r.created_at DESC',
             'capacity_desc': 'COALESCE(r.capacity, 0) DESC, r.title ASC',
             'capacity_asc': 'COALESCE(r.capacity, 999999) ASC, r.title ASC',
@@ -142,11 +153,24 @@ class ResourceDAL:
         }
         order_clause = sort_map.get(sort, sort_map['recent'])
 
-        result_parts = ['SELECT r.*', 'FROM resources r']
+        # Build SELECT clause with aggregations if needed
+        if needs_booking_join:
+            select_clause = 'SELECT r.*, COUNT(DISTINCT b.booking_id) AS booking_count'
+        elif needs_review_join:
+            select_clause = 'SELECT r.*, COALESCE(AVG(rv.rating), 0) AS avg_rating, COUNT(DISTINCT rv.review_id) AS review_count'
+        else:
+            select_clause = 'SELECT r.*'
+
+        result_parts = [select_clause, 'FROM resources r']
         if joins:
             result_parts.extend(joins)
         if wheres:
             result_parts.append('WHERE ' + ' AND '.join(wheres))
+        
+        # Add GROUP BY for aggregated sorts
+        if needs_booking_join or needs_review_join:
+            result_parts.append('GROUP BY r.resource_id')
+        
         result_parts.append('ORDER BY ' + order_clause)
 
         result_params = list(params)
@@ -166,6 +190,7 @@ class ResourceDAL:
             rows = cursor.fetchall()
 
             if include_total:
+                # For count, we don't need GROUP BY even if the main query has it
                 count_parts = ['SELECT COUNT(DISTINCT r.resource_id) AS total', 'FROM resources r']
                 if joins:
                     count_parts.extend(joins)
@@ -176,7 +201,21 @@ class ResourceDAL:
                 count_row = cursor.fetchone()
                 total_count = count_row['total'] if count_row else 0
             
-        resources = [Resource(**dict(row)) for row in rows]
+        # Filter out extra fields (booking_count, avg_rating, review_count) before creating Resource objects
+        resource_fields = {
+            'resource_id', 'owner_id', 'title', 'description', 'category', 'location',
+            'capacity', 'images', 'equipment', 'availability_rules', 'is_restricted',
+            'status', 'created_at', 'availability_schedule', 'min_booking_minutes',
+            'max_booking_minutes', 'booking_increment_minutes', 'buffer_minutes',
+            'advance_booking_days', 'min_lead_time_hours'
+        }
+        resources = []
+        for row in rows:
+            row_dict = dict(row)
+            # Remove extra fields that aren't part of Resource model
+            resource_dict = {k: v for k, v in row_dict.items() if k in resource_fields}
+            resources.append(Resource(**resource_dict))
+        
         if include_total:
             return resources, total_count
         return resources

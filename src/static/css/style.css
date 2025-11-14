@@ -255,17 +255,46 @@ a:hover {
 .nav-pill--accent {
     background: linear-gradient(135deg, var(--iu-crimson) 0%, var(--iu-crimson-darker) 100%);
     color: #ffffff !important;
-    box-shadow: var(--shadow-crimson);
+    box-shadow: 0 4px 16px rgba(153, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
     font-weight: 700;
+    position: relative;
+    overflow: hidden;
 }
 
 .nav-pill--accent::before {
-    background: rgba(255, 255, 255, 0.1);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%);
+    opacity: 1;
+}
+
+.nav-pill--accent::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.3) 50%, transparent 70%);
+    transform: translateX(-100%) translateY(-100%) rotate(45deg);
+    transition: transform 0.6s ease;
 }
 
 .nav-pill--accent:hover {
-    box-shadow: var(--shadow-crimson-hover);
-    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(153, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+    transform: translateY(-2px) scale(1.02);
+    background: linear-gradient(135deg, var(--iu-crimson-light) 0%, var(--iu-crimson) 100%);
+}
+
+.nav-pill--accent:hover::after {
+    transform: translateX(100%) translateY(100%) rotate(45deg);
+}
+
+.nav-pill--accent:hover i {
+    transform: scale(1.15) rotate(90deg);
+}
+
+.nav-pill--accent i {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: inline-block;
 }
 
 .nav-meta {

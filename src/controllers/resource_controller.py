@@ -32,6 +32,8 @@ RESOURCE_CATEGORIES = ['Study Room', 'Lab Equipment', 'Event Space', 'AV Equipme
 BROWSE_PAGE_SIZE = 9
 BROWSE_SORT_OPTIONS = {
     'recent': 'Most Recent',
+    'most_booked': 'Most Booked',
+    'top_rated': 'Top Rated',
     'name_az': 'Name A–Z',
     'capacity_desc': 'Capacity (High to Low)',
     'capacity_asc': 'Capacity (Low to High)',

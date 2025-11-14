@@ -95,7 +95,12 @@
                     {% else %}
                     {% set card_image = url_for('static', filename='images/' + first_image) %}
                     {% endif %}
+                    {% if loop.index <= 6 %}
+                    {# Eagerly load first 6 images for snappy initial display #}
+                    <div class="resource-image" data-eager-bg="{{ card_image }}" role="img" aria-label="Photo of {{ resource.title }}"></div>
+                    {% else %}
                     <div class="resource-image" data-lazy-bg="{{ card_image }}" role="img" aria-label="Photo of {{ resource.title }}"></div>
+                    {% endif %}
                     {% else %}
                     <div class="resource-image resource-placeholder" aria-hidden="true"><i class="bi bi-building"></i></div>
                     {% endif %}
