@@ -8,7 +8,8 @@ from src.config import Config
 
 def get_db_connection():
     """Create a database connection"""
-    conn = sqlite3.connect(Config.DATABASE_PATH)
+    # Add timeout to handle database locks, especially when accessing over WSL
+    conn = sqlite3.connect(Config.DATABASE_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
     # Enforce referential integrity for every connection
     conn.execute('PRAGMA foreign_keys = ON')
@@ -86,6 +87,13 @@ def init_database():
                 availability_rules TEXT,
                 is_restricted INTEGER NOT NULL DEFAULT 0 CHECK(is_restricted IN (0, 1)),
                 status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'published', 'archived')),
+                availability_schedule TEXT,
+                min_booking_minutes INTEGER DEFAULT 30,
+                max_booking_minutes INTEGER DEFAULT 480,
+                booking_increment_minutes INTEGER DEFAULT 30,
+                buffer_minutes INTEGER DEFAULT 0,
+                advance_booking_days INTEGER DEFAULT 90,
+                min_lead_time_hours INTEGER DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (owner_id) REFERENCES users(user_id)
             )
@@ -100,10 +108,20 @@ def init_database():
             cursor.execute('ALTER TABLE resources ADD COLUMN is_restricted INTEGER NOT NULL DEFAULT 0 CHECK(is_restricted IN (0, 1))')
         except OperationalError:
             pass
-        try:
-            cursor.execute('ALTER TABLE resources ADD COLUMN availability_rules TEXT')
-        except OperationalError:
-            pass
+        for column in (
+            'availability_rules TEXT',
+            'availability_schedule TEXT',
+            'min_booking_minutes INTEGER DEFAULT 30',
+            'max_booking_minutes INTEGER DEFAULT 480',
+            'booking_increment_minutes INTEGER DEFAULT 30',
+            'buffer_minutes INTEGER DEFAULT 0',
+            'advance_booking_days INTEGER DEFAULT 90',
+            'min_lead_time_hours INTEGER DEFAULT 0'
+        ):
+            try:
+                cursor.execute(f'ALTER TABLE resources ADD COLUMN {column}')
+            except OperationalError:
+                pass
 
         # Bookings table
         cursor.execute('''

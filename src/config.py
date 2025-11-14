@@ -46,6 +46,7 @@ class Config:
     # Application settings
     RESOURCES_PER_PAGE = 12
     MESSAGES_PER_PAGE = 20
+    DEFAULT_SCHEDULE_TEMPLATE = os.environ.get('DEFAULT_SCHEDULE_TEMPLATE', 'business')
 
     # Registration restrictions
     ALLOWED_EMAIL_DOMAINS = {'iu.edu'}
@@ -72,3 +73,13 @@ class Config:
     EXTERNAL_BASE_URL = os.environ.get('EXTERNAL_BASE_URL')
     GOOGLE_CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.events']
     CALENDAR_DEFAULT_TIMEZONE = os.environ.get('CALENDAR_DEFAULT_TIMEZONE', 'America/New_York')
+
+    # Local LLM settings (Ollama, LM Studio, etc.)
+    LOCAL_LLM_BASE_URL = os.environ.get('LOCAL_LLM_BASE_URL')
+    LOCAL_LLM_MODEL = os.environ.get('LOCAL_LLM_MODEL', 'llama3.1')
+    LOCAL_LLM_PROVIDER = os.environ.get('LOCAL_LLM_PROVIDER', 'openai')
+    LOCAL_LLM_API_KEY = os.environ.get('LOCAL_LLM_API_KEY')
+    LOCAL_LLM_TIMEOUT = int(os.environ.get('LOCAL_LLM_TIMEOUT', 30))
+
+    # Concierge inputs
+    CONCIERGE_CONTEXT_DIR = os.environ.get('CONCIERGE_CONTEXT_DIR')

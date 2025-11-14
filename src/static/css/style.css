@@ -4043,3 +4043,185 @@ a:hover {
 .review-body a:hover {
     text-decoration-thickness: 2px;
 }
+
+/* Resource concierge ------------------------------------------------------ */
+.concierge-hero {
+    background: var(--iu-surface);
+    border-bottom: 1px solid var(--border);
+}
+
+.concierge-perks i {
+    color: var(--iu-crimson);
+}
+
+.context-card {
+    background: var(--iu-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    height: 100%;
+}
+
+.context-card__inner {
+    padding: 2rem;
+}
+
+.concierge-badge {
+    border-radius: var(--radius-full);
+    font-weight: 600;
+}
+
+.concierge-console {
+    background: var(--iu-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    padding: 2rem;
+    box-shadow: var(--shadow-card);
+}
+
+.concierge-console__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.bg-soft-crimson {
+    background: var(--iu-crimson-ultra-light);
+    color: var(--iu-crimson);
+    border: 1px solid rgba(153, 0, 0, 0.15);
+}
+
+.concierge-chat {
+    min-height: 260px;
+    max-height: 420px;
+    overflow-y: auto;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    background: var(--iu-surface-alt);
+}
+
+.concierge-message {
+    display: flex;
+    margin-bottom: 1rem;
+}
+
+.concierge-message:last-child {
+    margin-bottom: 0;
+}
+
+.concierge-message--user {
+    justify-content: flex-end;
+}
+
+.concierge-message__bubble {
+    max-width: 90%;
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius-md);
+    background: #fff;
+    box-shadow: var(--shadow-sm);
+    font-size: 0.95rem;
+}
+
+.concierge-message--user .concierge-message__bubble {
+    background: var(--iu-crimson);
+    color: #fff;
+}
+
+.concierge-form textarea {
+    border-radius: var(--radius-md);
+}
+
+.concierge-tip-card {
+    background: linear-gradient(135deg, var(--iu-sand), var(--iu-surface));
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-sm);
+}
+
+.concierge-tip-card__body {
+    padding: 2rem;
+}
+
+.concierge-hints button {
+    font-weight: 600;
+    color: var(--iu-crimson);
+}
+
+.concierge-section {
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    padding: 1rem;
+    margin-top: 1rem;
+    background: #fff;
+}
+
+.concierge-meta {
+    font-size: 0.85rem;
+    color: var(--muted);
+    border-left: 3px solid var(--iu-crimson);
+    padding: 0.35rem 0 0.35rem 0.75rem;
+    margin-bottom: 0.75rem;
+    background: rgba(153, 0, 0, 0.04);
+    border-radius: var(--radius-sm);
+}
+
+.concierge-meta--warning {
+    border-left-color: #d39e00;
+    background: rgba(211, 158, 0, 0.1);
+    color: #8a6d1d;
+}
+
+.concierge-resource {
+    border-bottom: 1px solid var(--border);
+    padding: 0.75rem 0;
+}
+
+.concierge-resource:last-child,
+.concierge-context:last-child {
+    border-bottom: none;
+}
+
+.concierge-resource__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+}
+
+.concierge-context {
+    border-bottom: 1px solid var(--border);
+    padding: 0.75rem 0;
+}
+
+.concierge-answer {
+    background: var(--iu-surface-alt);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    padding: 1rem;
+    font-size: 0.95rem;
+    white-space: pre-wrap;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+@media (max-width: 767px) {
+    .concierge-console,
+    .concierge-tip-card {
+        padding: 1.5rem;
+    }
+
+    .concierge-console__header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .concierge-chat {
+        max-height: none;
+    }
+}

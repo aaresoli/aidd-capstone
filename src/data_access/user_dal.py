@@ -10,16 +10,16 @@ class UserDAL:
     """Data access layer for user operations"""
     
     @staticmethod
-    def create_user(name, email, password, role='student', department=None):
+    def create_user(name, email, password, role='student', department=None, email_verified=True):
         """Create a new user with hashed password"""
         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         
         with get_db() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO users (name, email, password_hash, role, department)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (name, email, password_hash, role, department))
+                INSERT INTO users (name, email, password_hash, role, department, email_verified)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (name, email, password_hash, role, department, int(bool(email_verified))))
             user_id = cursor.lastrowid
             
         return UserDAL.get_user_by_id(user_id)
@@ -100,6 +100,23 @@ class UserDAL:
         with get_db() as conn:
             cursor = conn.cursor()
             cursor.execute('UPDATE users SET is_suspended = ? WHERE user_id = ?', (value, user_id))
+        return cursor.rowcount > 0
+
+    @staticmethod
+    def mark_email_verified(user_id):
+        """Mark a user account as email verified."""
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''
+                UPDATE users
+                SET email_verified = 1,
+                    verification_token = NULL,
+                    verification_token_expiry = NULL
+                WHERE user_id = ?
+                ''',
+                (user_id,)
+            )
         return cursor.rowcount > 0
 
     @staticmethod

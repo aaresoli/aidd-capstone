@@ -15,6 +15,7 @@ A modern full-stack web application for managing and booking campus resources in
 - **Responsive Design**: Polished UI that adapts to desktops, tablets, and phones
 - **Moderation Controls**: Users can flag reviews/messages, and admins can suspend accounts, hide content, and log every action
 - **Calendar Sync**: OAuth connection to Google Calendar plus downloadable iCal files for any booking
+- **AI Resource Concierge**: Retrieval-based assistant that answers natural-language questions using docs/context markdown and the live resource directory
 
 ## 🚀 Quick Start
 
@@ -103,6 +104,30 @@ To enable Google Calendar integration you will need OAuth credentials from the [
    - If your Flask app sits behind a load balancer or proxy that terminates HTTPS, set `EXTERNAL_BASE_URL=https://your-domain.com` (no trailing slash). The app combines that base with the redirect path so the URL sent to Google always matches the one registered in Cloud Console, even when Flask itself only sees `http://localhost`.
 3. On the OAuth consent screen in Google Cloud Console, either publish the app (if you have a verified production domain) or add every tester’s Google account under **Test users**—Google rejects logins from anyone who is not whitelisted while the app is in “Testing” status.
 4. Restart the Flask app and head to *Dashboard → Calendar Sync* to connect your Google account. Each booking detail page now offers both **Sync to Google Calendar** and **Download iCal** actions.
+
+## 🤖 Resource Concierge
+
+The Resource Concierge blends information from the `/docs/context/*.md` knowledge pack with the published records in `campus_hub.db`. Ask natural-language questions (e.g., “Which 3D printer labs require approvals?”) and the assistant responds with:
+
+- Verified answers that never leave the project sandbox
+- Inline citations referencing the exact markdown section(s)
+- Live resource matches pulled from the SQLite catalog
+
+Access it from the global navigation via **Concierge** or visit [`/concierge`](http://localhost:5000/concierge).
+
+### Optional: Local LLM reasoning
+
+If you want richer language output (still grounded in the project data), point the app to a local LLM runtime such as [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai). Both expose HTTP chat APIs, so configure them through environment variables:
+
+```
+LOCAL_LLM_BASE_URL=http://localhost:11434      # Ollama default or LM Studio host
+LOCAL_LLM_PROVIDER=ollama                      # or "openai" for LM Studio/OpenAI-compatible APIs
+LOCAL_LLM_MODEL=llama3.1                       # Model tag exposed by your runtime
+LOCAL_LLM_API_KEY=                             # Optional (LM Studio/OpenAI style only)
+LOCAL_LLM_TIMEOUT=30                           # Seconds
+```
+
+When these values are present, the concierge runs the retrieved snippets/local resource data through your local model and clearly labels the response as “Answer synthesized by your local AI using verified data.”
 
 ## 📁 Project Structure
 

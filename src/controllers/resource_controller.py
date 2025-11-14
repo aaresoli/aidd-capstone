@@ -397,8 +397,13 @@ def list_resources():
 def detail(resource_id):
     """Resource detail page"""
     resource, avg_rating, review_count = ResourceDAL.get_resource_with_avg_rating(resource_id)
-    
-    if not resource or resource.status != 'published':
+
+    if not resource:
+        flash('Resource not found', 'danger')
+        return redirect(url_for('resource.list_resources'))
+
+    can_view_unpublished = can_manage_resource(resource)
+    if resource.status != 'published' and not can_view_unpublished:
         flash('Resource not found', 'danger')
         return redirect(url_for('resource.list_resources'))
     
@@ -416,6 +421,7 @@ def detail(resource_id):
     schedule = parse_schedule(getattr(resource, 'availability_schedule', None))
     schedule_display = format_schedule_display(schedule) if schedule else None
     booking_rules = get_booking_rules_summary(resource)
+    show_unpublished_notice = resource.status != 'published' and can_view_unpublished
 
     return render_template('resources/detail.html',
                          resource=resource,
@@ -425,7 +431,8 @@ def detail(resource_id):
                          stats=stats,
                          has_reviewed=has_reviewed,
                          schedule_display=schedule_display,
-                         booking_rules=booking_rules)
+                         booking_rules=booking_rules,
+                         show_unpublished_notice=show_unpublished_notice)
 
 @resource_bp.route('/create', methods=['GET', 'POST'])
 @login_required
@@ -447,6 +454,8 @@ def create():
 
         # Availability schedule fields
         schedule_template = request.form.get('schedule_template', '').strip()
+        if not schedule_template:
+            schedule_template = current_app.config.get('DEFAULT_SCHEDULE_TEMPLATE', 'business')
         min_booking_minutes = request.form.get('min_booking_minutes', '30').strip()
         max_booking_minutes = request.form.get('max_booking_minutes', '480').strip()
         booking_increment_minutes = request.form.get('booking_increment_minutes', '30').strip()
@@ -607,7 +616,8 @@ def create():
             flash(f'Error creating resource: {str(e)}', 'danger')
             return render_template('resources/create.html', categories=categories, schedule_templates=schedule_templates, form_data=request.form)
 
-    return render_template('resources/create.html', categories=categories, schedule_templates=schedule_templates, form_data={})
+    default_form = {'schedule_template': current_app.config.get('DEFAULT_SCHEDULE_TEMPLATE', 'business')}
+    return render_template('resources/create.html', categories=categories, schedule_templates=schedule_templates, form_data=default_form)
 
 @resource_bp.route('/<int:resource_id>/edit', methods=['GET', 'POST'])
 @login_required

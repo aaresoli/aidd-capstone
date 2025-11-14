@@ -323,6 +323,9 @@ def ensure_sample_content():
             if needs_update:
                 UserDAL.update_user(record.user_id, **updates)
                 record = UserDAL.get_user_by_id(record.user_id)
+        if record and not getattr(record, 'email_verified', False):
+            UserDAL.mark_email_verified(record.user_id)
+            record = UserDAL.get_user_by_id(record.user_id)
         user_lookup[user['email']] = record
 
     created_count = 0

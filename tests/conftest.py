@@ -12,6 +12,7 @@ def temp_db(tmp_path, monkeypatch):
     """Provide an isolated SQLite database for each test."""
     db_path = tmp_path / 'test.db'
     monkeypatch.setattr(Config, 'DATABASE_PATH', str(db_path))
+    monkeypatch.setattr(Config, 'EMAIL_VERIFICATION_ENABLED', False)
 
     # Ensure upload folder exists for operations that rely on it
     upload_dir = tmp_path / 'uploads'

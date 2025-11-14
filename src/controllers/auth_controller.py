@@ -73,7 +73,7 @@ def register():
         
         # Create user
         try:
-            user = UserDAL.create_user(name, email, password, role, department)
+            user = UserDAL.create_user(name, email, password, role, department, email_verified=False)
 
             # Generate verification token
             token = EmailVerificationService.generate_verification_token()
@@ -123,7 +123,8 @@ def login():
                 return render_template('auth/login.html')
 
             # Check if email is verified
-            if not getattr(user, 'email_verified', False):
+            verification_required = current_app.config.get('EMAIL_VERIFICATION_ENABLED', True)
+            if verification_required and not getattr(user, 'email_verified', False):
                 flash('Please verify your email address before logging in. Use the link displayed after registration or request a new one.', 'warning')
                 # Provide link to resend verification
                 flash('Need a fresh link? <a href="' + url_for('auth.resend_verification_form') + '">Generate verification link</a>', 'info')

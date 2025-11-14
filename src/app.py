@@ -40,7 +40,8 @@ from src.controllers import (
     admin_bp,
     calendar_bp,
     accessibility_bp,
-    notification_bp
+    notification_bp,
+    concierge_bp
 )
 from src.utils.calendar_sync import GOOGLE_PROVIDER
 from src.services.notification_center import NotificationCenter
@@ -89,6 +90,7 @@ def create_app():
     app.register_blueprint(calendar_bp)
     app.register_blueprint(accessibility_bp)
     app.register_blueprint(notification_bp)
+    app.register_blueprint(concierge_bp)
 
     @app.before_request
     def enforce_account_health():

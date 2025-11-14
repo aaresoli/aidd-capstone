@@ -35,6 +35,11 @@
                                 <i class="bi bi-search"></i> Browse
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link nav-pill" href="{{ url_for('concierge.index') }}">
+                                <i class="bi bi-stars"></i> Concierge
+                            </a>
+                        </li>
                         {% if current_user.is_authenticated %}
                             <li class="nav-item">
                                 <a class="nav-link nav-pill" href="{{ url_for('dashboard') }}">
@@ -186,6 +191,7 @@
                             <h6>Essential</h6>
                             <ul class="footer-links-list">
                                 <li><a href="{{ url_for('resource.list_resources') }}">Resource directory</a></li>
+                                <li><a href="{{ url_for('concierge.index') }}">Resource concierge</a></li>
                                 {% if current_user.is_authenticated %}
                                     <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
                                 {% else %}

@@ -9,3 +9,4 @@ from src.controllers.admin_controller import admin_bp
 from src.controllers.calendar_controller import calendar_bp
 from src.controllers.accessibility_controller import accessibility_bp
 from src.controllers.notification_controller import notification_bp
+from src.controllers.concierge_controller import concierge_bp

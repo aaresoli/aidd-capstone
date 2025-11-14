@@ -82,11 +82,21 @@ class ResourceDAL:
                          sort='recent', page=1, per_page=None, include_total=False):
         """Search resources with filters"""
         joins = []
-        wheres = ['r.status = ?']
-        params = [status]
+        wheres = []
+        params = []
         keyword_value = keyword.strip().lower() if keyword else None
         location_value = location.strip().lower() if location else None
         category_value = category.strip() if category else None
+
+        if status is None:
+            pass
+        elif isinstance(status, (list, tuple, set)):
+            placeholders = ','.join('?' for _ in status)
+            wheres.append(f'r.status IN ({placeholders})')
+            params.extend(list(status))
+        else:
+            wheres.append('r.status = ?')
+            params.append(status)
 
         if keyword_value:
             wheres.append('('
