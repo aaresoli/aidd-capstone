@@ -135,7 +135,8 @@
                                 {% set badge_tone = {
                                     'success': 'bg-success-subtle text-success border border-success-subtle',
                                     'info': 'bg-info-subtle text-info border border-info-subtle',
-                                    'warning': 'bg-warning-subtle text-warning border border-warning-subtle'
+                                    'warning': 'bg-warning-subtle text-warning border border-warning-subtle',
+                                    'danger': 'bg-danger-subtle text-danger border border-danger-subtle'
                                 } %}
                                 <span class="badge {{ badge_tone[item.availability_badge or 'info'] }}">
                                     {{ item.availability_status }}
@@ -174,7 +175,13 @@
                         </div>
                         <p class="resource-description text-muted flex-grow-1 mb-3">{{ resource.description|default('No description provided.')|truncate(140) }}</p>
                         {% if item.next_available %}
-                        <p class="resource-next-available text-success small fw-semibold mb-3 d-flex align-items-center">
+                        {% set availability_color_class = {
+                            'success': 'text-success',
+                            'info': 'text-info',
+                            'warning': 'text-warning',
+                            'danger': 'text-danger'
+                        } %}
+                        <p class="resource-next-available {{ availability_color_class[item.availability_badge or 'info'] }} small fw-semibold mb-3 d-flex align-items-center">
                             <i class="bi bi-clock me-1"></i>
                             <span>Next available: {{ item.next_available }}</span>
                         </p>

@@ -199,7 +199,15 @@ def list_resources():
         intervals.sort(key=lambda pair: pair[0])
 
     def calculate_next_available(resource, bookings):
-        """Calculate next available slot using smart availability system"""
+        """
+        Calculate next available slot using smart availability system.
+        
+        Logic:
+        1. Check resource's operating hours for today
+        2. Find available slot after current bookings end, before today's operating hours end
+        3. If no slots available today, check tomorrow's earliest slot
+        4. Return None if no availability found within 7 days
+        """
         # Parse resource schedule
         schedule = parse_schedule(getattr(resource, 'availability_schedule', None))
 
@@ -236,6 +244,47 @@ def list_resources():
                     self.status = 'approved'
             booking_objects.append(BookingSlot(start_dt, end_dt))
 
+        # First, try to find a slot today
+        today_end = now.replace(hour=23, minute=59, second=59)
+        next_slot_today = get_next_available_slot(
+            schedule=schedule,
+            existing_bookings=booking_objects,
+            duration_minutes=duration_minutes,
+            buffer_minutes=buffer_minutes,
+            lead_time_hours=lead_time_hours,
+            max_days_ahead=1,  # Only search within today
+            increment_minutes=increment_minutes
+        )
+
+        # Check if the slot found is actually today
+        if next_slot_today and next_slot_today.date() == now.date():
+            delta = next_slot_today - now
+            if delta <= timedelta(minutes=5):
+                status, badge = 'Open now', 'success'
+            elif delta <= timedelta(hours=2):
+                status, badge = 'Available today', 'success'
+            else:
+                status, badge = 'Available today', 'info'
+            return next_slot_today, status, badge
+
+        # No slots today, check tomorrow
+        tomorrow_start = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        next_slot_tomorrow = get_next_available_slot(
+            schedule=schedule,
+            existing_bookings=booking_objects,
+            duration_minutes=duration_minutes,
+            buffer_minutes=buffer_minutes,
+            lead_time_hours=lead_time_hours,
+            max_days_ahead=2,  # Check up to 2 days (to ensure we get tomorrow)
+            increment_minutes=increment_minutes,
+            start_from=tomorrow_start
+        )
+
+        # Check if the slot found is tomorrow
+        if next_slot_tomorrow and next_slot_tomorrow.date() == tomorrow_start.date():
+            return next_slot_tomorrow, 'Available tomorrow', 'info'
+
+        # If still no slot, search further ahead (up to 7 days)
         next_slot = get_next_available_slot(
             schedule=schedule,
             existing_bookings=booking_objects,
@@ -247,14 +296,7 @@ def list_resources():
         )
 
         if next_slot:
-            delta = next_slot - now
-            if delta <= timedelta(minutes=5):
-                status, badge = 'Open now', 'success'
-            elif delta <= timedelta(hours=24):
-                status, badge = 'Available soon', 'info'
-            else:
-                status, badge = 'Limited availability', 'warning'
-            return next_slot, status, badge
+            return next_slot, 'Limited availability', 'warning'
         else:
             return None, 'No availability', 'danger'
 
@@ -263,13 +305,26 @@ def list_resources():
         if not next_dt:
             return "No availability in next 7 days"
 
-        day_label = 'Today'
-        if next_dt.date() == (now + timedelta(days=1)).date():
+        # Determine day label
+        if next_dt.date() == now.date():
+            day_label = 'Today'
+        elif next_dt.date() == (now + timedelta(days=1)).date():
             day_label = 'Tomorrow'
-        elif next_dt.date() != now.date():
+        else:
             day_label = next_dt.strftime('%b %d')
 
+        # Format time nicely (remove leading zero from hour)
         time_label = next_dt.strftime('%I:%M %p').lstrip('0')
+        
+        # For slots very soon (within 30 minutes), show "Now" or time remaining
+        if next_dt.date() == now.date():
+            delta = next_dt - now
+            if delta <= timedelta(minutes=5):
+                return "Available now"
+            elif delta <= timedelta(minutes=30):
+                minutes = int(delta.total_seconds() / 60)
+                return f"Available in {minutes} min"
+        
         return f"{day_label}, {time_label}"
 
     def can_access_resource(resource):
