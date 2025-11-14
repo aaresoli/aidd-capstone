@@ -89,7 +89,7 @@
             </div>
             {% endif %}
 
-            <div class="row g-4">
+            <div class="row g-4 align-items-start">
                 <!-- Main Content Column -->
                 <div class="col-lg-8">
                     <!-- Resource Card -->
@@ -194,6 +194,43 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Operating Hours -->
+                    {% if schedule_display %}
+                    <div class="dashboard-card mb-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="icon-box bg-warning-subtle text-warning me-3">
+                                <i class="bi bi-clock-history"></i>
+                            </div>
+                            <h5 class="mb-0">Operating Hours</h5>
+                        </div>
+
+                        <div class="operating-hours-container">
+                            <div class="operating-hours-schedule">
+                                {% for line in schedule_display %}
+                                {% set colon_pos = line.find(':') %}
+                                {% if colon_pos > 0 %}
+                                {% set day_name = line[:colon_pos].strip() %}
+                                {% set time_range = line[colon_pos + 1:].strip() %}
+                                <div class="operating-hours-day">
+                                    <span class="operating-hours-day-name">{{ day_name }}</span>
+                                    {% if 'Closed' in time_range or time_range == '' %}
+                                    <span class="operating-hours-time operating-hours-closed">Closed</span>
+                                    {% else %}
+                                    <span class="operating-hours-time operating-hours-open">{{ time_range }}</span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="operating-hours-note mt-3">
+                            <i class="bi bi-info-circle me-2 text-muted"></i>
+                            <small class="text-muted">Standard availability for this resource</small>
+                        </div>
+                    </div>
+                    {% endif %}
 
                     <!-- Request History -->
                     <div class="dashboard-card mb-4 history-card">
@@ -521,6 +558,14 @@
     background: #f4f6fb;
 }
 
+.dashboard-card {
+    background: #fff;
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
 .icon-box {
     width: 48px;
     height: 48px;
@@ -534,17 +579,27 @@
 
 .info-grid {
     display: grid;
-    gap: 1.25rem;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    align-items: start;
 }
 
 .info-grid.two-column {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+@media (min-width: 768px) {
+    .info-grid.two-column {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 .info-item {
+    display: flex;
+    flex-direction: column;
     border-bottom: 1px solid var(--border-light);
-    padding-bottom: 0.75rem;
+    padding-bottom: 1rem;
+    min-height: 60px;
 }
 
 .info-item:last-child {
@@ -571,10 +626,10 @@
 .contact-tile {
     border: 1px dashed var(--border-light);
     border-radius: 16px;
-    padding: 1rem 1.25rem;
+    padding: 1.25rem 1.5rem;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 1.25rem;
     background: linear-gradient(120deg, #ffffff, #f8fbff);
 }
 
@@ -601,7 +656,7 @@
 
 .schedule-timeline {
     position: relative;
-    padding: 1.5rem 1.5rem 1.5rem 2rem;
+    padding: 1.5rem 1.5rem 1.5rem 2.5rem;
     background: linear-gradient(180deg, rgba(248, 250, 252, 0.6), #fff);
     border-radius: 16px;
     border: 1px solid var(--border-light);
@@ -610,9 +665,9 @@
 .schedule-timeline::before {
     content: '';
     position: absolute;
-    left: 20px;
-    top: 32px;
-    bottom: 32px;
+    left: 24px;
+    top: 36px;
+    bottom: 36px;
     width: 2px;
     background: linear-gradient(to bottom, var(--success), var(--danger));
 }
@@ -620,9 +675,10 @@
 .schedule-item {
     display: flex;
     align-items: flex-start;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
     position: relative;
+    padding-left: 0.5rem;
 }
 
 .schedule-item:last-child {
@@ -635,9 +691,10 @@
     border-radius: 50%;
     border: 3px solid white;
     position: absolute;
-    left: -0.75rem;
-    top: 0.35rem;
+    left: -1.25rem;
+    top: 0.4rem;
     box-shadow: 0 0 0 2px currentColor;
+    z-index: 1;
 }
 
 .schedule-marker.start {
@@ -666,16 +723,24 @@
     background: #f8fafc;
     border: 1px dashed var(--border-light);
     border-radius: 12px;
-    padding: 0.75rem 1rem;
+    padding: 0.875rem 1.25rem;
     font-size: 0.85rem;
     color: var(--muted);
+    display: flex;
+    align-items: center;
 }
 
 .soft-highlight {
     background: linear-gradient(135deg, #fdfefe, #f2f7ff);
     border: 1px solid var(--border-light);
     border-radius: 16px;
-    padding: 1rem 1.25rem;
+    padding: 1.25rem 1.5rem;
+}
+
+.soft-highlight .icon-box {
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
 }
 
 .history-card .history-list {
@@ -686,7 +751,16 @@
 
 .history-list li {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-light);
+    gap: 1rem;
+}
+
+.history-list li:last-child {
+    border-bottom: none;
 }
 
 .history-label {
@@ -695,11 +769,15 @@
     letter-spacing: 0.08em;
     color: var(--muted);
     font-weight: 600;
+    min-width: 120px;
+    flex-shrink: 0;
 }
 
 .history-value {
     font-weight: 600;
     color: var(--ink);
+    text-align: right;
+    flex-grow: 1;
 }
 
 .calendar-card {
@@ -717,6 +795,10 @@
 .calendar-footnote {
     border-top: 1px dashed var(--border-light);
     padding-top: 1rem;
+    margin-top: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .requester-card .requester-intro {
@@ -730,7 +812,8 @@
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid var(--border-light);
-    padding: 0.25rem 0;
+    padding: 0.75rem 0;
+    gap: 1rem;
 }
 
 .meta-pair:last-child {
@@ -804,6 +887,96 @@
     color: #6c757d !important;
 }
 
+.operating-hours-container {
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.5), #fff);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.operating-hours-schedule {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+    background: transparent;
+    border-radius: 0;
+    border: none;
+}
+
+.operating-hours-day {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.875rem 1.25rem;
+    border-bottom: 1px solid var(--border-light);
+    transition: background-color 0.2s ease;
+    min-height: 52px;
+    gap: 1.5rem;
+}
+
+.operating-hours-day:first-child {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.operating-hours-day:last-child {
+    border-bottom: none;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.operating-hours-day:hover {
+    background-color: rgba(248, 250, 252, 0.8);
+}
+
+.operating-hours-day-name {
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 0.9375rem;
+    min-width: 130px;
+    flex-shrink: 0;
+    letter-spacing: 0.01em;
+}
+
+.operating-hours-time {
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    white-space: normal;
+    text-align: center;
+    min-width: 160px;
+    max-width: 220px;
+    flex-shrink: 0;
+    line-height: 1.4;
+}
+
+.operating-hours-time.operating-hours-open {
+    color: #198754;
+    background-color: rgba(25, 135, 84, 0.12);
+    border: 1px solid rgba(25, 135, 84, 0.25);
+}
+
+.operating-hours-time.operating-hours-closed {
+    color: #6c757d;
+    background-color: rgba(108, 117, 125, 0.08);
+    border: 1px solid rgba(108, 117, 125, 0.2);
+    font-style: italic;
+}
+
+.operating-hours-note {
+    background: #f8fafc;
+    border: 1px dashed var(--border-light);
+    border-radius: 8px;
+    padding: 0.875rem 1.25rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 @media (max-width: 576px) {
     .booking-hero {
         padding: 1.5rem;
@@ -816,6 +989,43 @@
     .status-pill {
         width: 100%;
         justify-content: center;
+    }
+
+    .operating-hours-day {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 1rem;
+    }
+
+    .operating-hours-day-name {
+        min-width: auto;
+        width: 100%;
+    }
+
+    .operating-hours-time {
+        width: 100%;
+        min-width: auto;
+        max-width: 100%;
+        text-align: center;
+    }
+
+    .history-list li {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .history-value {
+        text-align: left;
+    }
+
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-card {
+        padding: 1.25rem;
     }
 }
 </style>

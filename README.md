@@ -27,10 +27,10 @@ A modern full-stack web application for managing and booking campus resources in
 
 ### Installation
 
-1. **Clone or create the project directory:**
+1. **Clone the repository:**
 ```bash
-mkdir campus-resource-hub
-cd campus-resource-hub
+git clone <repository-url>
+cd aidd-capstone
 ```
 
 2. **Create and activate virtual environment:**
@@ -148,7 +148,11 @@ campus-resource-hub/
 │   │   ├── booking_controller.py
 │   │   ├── message_controller.py
 │   │   ├── review_controller.py
-│   │   └── admin_controller.py
+│   │   ├── admin_controller.py
+│   │   ├── calendar_controller.py
+│   │   ├── accessibility_controller.py
+│   │   ├── notification_controller.py
+│   │   └── concierge_controller.py
 │   ├── models/             # Data models (MVC Models)
 │   │   └── models.py
 │   ├── data_access/        # Data Access Layer (DAL)
@@ -156,7 +160,12 @@ campus-resource-hub/
 │   │   ├── resource_dal.py
 │   │   ├── booking_dal.py
 │   │   ├── message_dal.py
-│   │   └── review_dal.py
+│   │   ├── review_dal.py
+│   │   ├── calendar_dal.py
+│   │   ├── notification_dal.py
+│   │   ├── admin_log_dal.py
+│   │   ├── waitlist_dal.py
+│   │   └── sample_data.py
 │   ├── views/              # HTML templates (MVC Views)
 │   │   ├── layout.html
 │   │   ├── index.html
@@ -171,13 +180,28 @@ campus-resource-hub/
 │   │   ├── js/
 │   │   └── uploads/
 │   ├── utils/              # Utility functions
-│   │   └── validators.py
+│   │   ├── validators.py
+│   │   ├── availability.py
+│   │   ├── calendar_sync.py
+│   │   ├── datetime_helpers.py
+│   │   ├── email_client.py
+│   │   ├── email_verification.py
+│   │   ├── notifications.py
+│   │   └── permissions.py
+│   ├── services/           # Business logic services
+│   │   ├── accessibility_audit.py
+│   │   ├── calendar_service.py
+│   │   ├── concierge_service.py
+│   │   ├── llm_client.py
+│   │   └── notification_center.py
 │   ├── config.py           # Application configuration
 │   └── app.py              # Main Flask application
 ├── tests/                  # Test suite
 │   ├── test_auth.py
 │   ├── test_booking.py
-│   └── test_dal.py
+│   ├── test_dal.py
+│   ├── test_integration.py
+│   └── ... (additional test files)
 ├── requirements.txt
 └── README.md
 ```

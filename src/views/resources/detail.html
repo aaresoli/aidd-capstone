@@ -29,7 +29,7 @@
                                 {% if trimmed.startswith('http') %}
                                     {% set image_src = trimmed %}
                                 {% else %}
-                                    {% set image_src = url_for('static', filename='images/' + trimmed) %}
+                                    {% set image_src = url_for('static', filename='uploads/' + trimmed) %}
                                 {% endif %}
                                 <div class="carousel-item {% if loop.first %}active{% endif %}">
                                     <img {% if loop.first %}src="{{ image_src }}"{% else %}data-src="{{ image_src }}" loading="lazy"{% endif %}

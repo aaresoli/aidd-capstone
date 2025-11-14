@@ -92,7 +92,7 @@
                             {% if first_image.startswith('http') %}
                                 {% set image_src = first_image %}
                             {% else %}
-                                {% set image_src = url_for('static', filename='images/' + first_image) %}
+                                {% set image_src = url_for('static', filename='uploads/' + first_image) %}
                             {% endif %}
                             <div class="resource-image" data-lazy-bg="{{ image_src }}"></div>
                         {% else %}

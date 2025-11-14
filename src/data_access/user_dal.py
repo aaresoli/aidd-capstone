@@ -3,6 +3,7 @@ User Data Access Layer
 Handles all database operations for users
 """
 import bcrypt
+from sqlite3 import OperationalError
 from src.data_access import get_db
 from src.models.models import User
 
@@ -86,9 +87,111 @@ class UserDAL:
     
     @staticmethod
     def delete_user(user_id):
-        """Delete a user"""
+        """Delete a user and all related data (cascading delete)"""
         with get_db() as conn:
             cursor = conn.cursor()
+            
+            # Delete in order to respect foreign key constraints
+            # Start with most dependent records first
+            
+            # 1. Delete calendar events and credentials (no dependencies)
+            try:
+                cursor.execute('DELETE FROM calendar_events WHERE user_id = ?', (user_id,))
+            except OperationalError:
+                pass
+            try:
+                cursor.execute('DELETE FROM calendar_credentials WHERE user_id = ?', (user_id,))
+            except OperationalError:
+                pass
+            
+            # 2. Delete notifications and notification state (no dependencies)
+            try:
+                cursor.execute('DELETE FROM notifications WHERE user_id = ?', (user_id,))
+            except OperationalError:
+                pass
+            try:
+                cursor.execute('DELETE FROM user_notification_state WHERE user_id = ?', (user_id,))
+            except OperationalError:
+                pass
+            
+            # 3. Delete admin logs (no dependencies)
+            try:
+                cursor.execute('DELETE FROM admin_logs WHERE admin_id = ?', (user_id,))
+            except OperationalError:
+                pass
+            
+            # 4. Update nullable foreign keys to NULL first
+            try:
+                cursor.execute('UPDATE reviews SET flagged_by = NULL WHERE flagged_by = ?', (user_id,))
+                cursor.execute('UPDATE messages SET flagged_by = NULL WHERE flagged_by = ?', (user_id,))
+                cursor.execute('UPDATE bookings SET decision_by = NULL WHERE decision_by = ?', (user_id,))
+            except OperationalError:
+                pass
+            
+            # 5. Delete waitlist entries (references requester_id, but no other user dependencies)
+            try:
+                cursor.execute('DELETE FROM waitlist_entries WHERE requester_id = ?', (user_id,))
+            except OperationalError:
+                pass
+            
+            # 6. Delete bookings where user is requester
+            try:
+                cursor.execute('DELETE FROM bookings WHERE requester_id = ?', (user_id,))
+            except OperationalError:
+                pass
+            
+            # 7. Delete bookings for resources owned by user (before deleting resources)
+            try:
+                cursor.execute('''
+                    DELETE FROM bookings 
+                    WHERE resource_id IN (SELECT resource_id FROM resources WHERE owner_id = ?)
+                ''', (user_id,))
+            except OperationalError:
+                pass
+            
+            # 8. Delete waitlist entries for resources owned by user
+            try:
+                cursor.execute('''
+                    DELETE FROM waitlist_entries 
+                    WHERE resource_id IN (SELECT resource_id FROM resources WHERE owner_id = ?)
+                ''', (user_id,))
+            except OperationalError:
+                pass
+            
+            # 9. Delete reviews for resources owned by user (before deleting resources)
+            try:
+                cursor.execute('''
+                    DELETE FROM reviews 
+                    WHERE resource_id IN (SELECT resource_id FROM resources WHERE owner_id = ?)
+                ''', (user_id,))
+            except OperationalError:
+                pass
+            
+            # 10. Delete reviews where user is reviewer (for resources not owned by user)
+            try:
+                cursor.execute('DELETE FROM reviews WHERE reviewer_id = ?', (user_id,))
+            except OperationalError:
+                pass
+            
+            # 11. Delete messages (references threads, but threads will be deleted)
+            try:
+                cursor.execute('DELETE FROM messages WHERE sender_id = ? OR receiver_id = ?', (user_id, user_id))
+            except OperationalError:
+                pass
+            
+            # 12. Delete message threads (references users)
+            try:
+                cursor.execute('DELETE FROM message_threads WHERE owner_id = ? OR participant_id = ?', (user_id, user_id))
+            except OperationalError:
+                pass
+            
+            # 13. Delete resources owned by user (now safe since all dependent records are deleted)
+            try:
+                cursor.execute('DELETE FROM resources WHERE owner_id = ?', (user_id,))
+            except OperationalError:
+                pass
+            
+            # 14. Finally, delete the user
             cursor.execute('DELETE FROM users WHERE user_id = ?', (user_id,))
             
         return cursor.rowcount > 0

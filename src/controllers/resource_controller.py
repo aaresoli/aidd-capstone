@@ -182,17 +182,20 @@ def list_resources():
     resource_ids = [resource.resource_id for resource in resources]
     upcoming_bookings = BookingDAL.get_bookings_for_resources(resource_ids, statuses=['pending', 'approved'])
     bookings_by_resource = defaultdict(list)
+    now = utc_now_naive()
+    
+    # Filter bookings to only include future bookings or ongoing bookings
     for booking in upcoming_bookings:
         start_dt = parse_datetime(booking.start_datetime)
         end_dt = parse_datetime(booking.end_datetime)
         if not start_dt or not end_dt:
             continue
-        bookings_by_resource[booking.resource_id].append((start_dt, end_dt))
+        # Only include bookings that haven't ended yet
+        if end_dt > now:
+            bookings_by_resource[booking.resource_id].append((start_dt, end_dt))
 
     for resource_id, intervals in bookings_by_resource.items():
         intervals.sort(key=lambda pair: pair[0])
-
-    now = utc_now_naive()
 
     def calculate_next_available(resource, bookings):
         """Calculate next available slot using smart availability system"""
@@ -218,7 +221,8 @@ def list_resources():
         # Use smart availability calculation
         buffer_minutes = getattr(resource, 'buffer_minutes', 0) or 0
         lead_time_hours = getattr(resource, 'min_lead_time_hours', 0) or 0
-        duration_minutes = 60  # Default 1-hour slot for display
+        duration_minutes = getattr(resource, 'min_booking_minutes', 60) or 60  # Use resource's minimum booking duration
+        increment_minutes = getattr(resource, 'booking_increment_minutes', 30) or 30  # Use resource's booking increment
 
         # Convert bookings to proper format
         booking_objects = []
@@ -237,7 +241,8 @@ def list_resources():
             duration_minutes=duration_minutes,
             buffer_minutes=buffer_minutes,
             lead_time_hours=lead_time_hours,
-            max_days_ahead=7
+            max_days_ahead=7,
+            increment_minutes=increment_minutes
         )
 
         if next_slot:

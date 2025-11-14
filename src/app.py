@@ -48,7 +48,10 @@ from src.services.notification_center import NotificationCenter
 
 def create_app():
     """Application factory"""
-    app = Flask(__name__, template_folder='views', static_folder='static')
+    # Use absolute paths for static and template folders
+    static_folder = os.path.join(os.path.dirname(__file__), 'static')
+    template_folder = os.path.join(os.path.dirname(__file__), 'views')
+    app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
     app.config.from_object(Config)
 
     # Configure caching based on environment

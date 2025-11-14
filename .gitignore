@@ -69,6 +69,8 @@ htmlcov/
 .env.local
 .env.production
 .env.*.local
+# Allow .env.example to be committed (template for users)
+!.env.example
 
 # NOTE: .flaskenv can be committed (contains non-sensitive dev config)
 # If you have secrets in .flaskenv, move them to .env instead

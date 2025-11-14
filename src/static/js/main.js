@@ -571,7 +571,9 @@ function initProgressiveImageLoading() {
         // Preload image
         const img = new Image();
         img.onload = () => {
-            element.style.backgroundImage = `url('${bgUrl}')`;
+            // Properly escape the URL for CSS
+            const escapedUrl = bgUrl.replace(/'/g, "\\'").replace(/"/g, '\\"');
+            element.style.backgroundImage = `url('${escapedUrl}')`;
             element.classList.remove('loading-bg');
             element.classList.add('loaded-bg');
             // Remove both lazy and eager attributes after loading
@@ -579,6 +581,7 @@ function initProgressiveImageLoading() {
             element.removeAttribute('data-eager-bg');
         };
         img.onerror = () => {
+            console.warn('Failed to load image:', bgUrl);
             element.classList.remove('loading-bg');
             element.classList.add('error-bg');
         };

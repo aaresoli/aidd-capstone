@@ -186,7 +186,8 @@ def get_next_available_slot(
     buffer_minutes: int = 0,
     start_from: Optional[datetime] = None,
     lead_time_hours: int = 0,
-    max_days_ahead: int = 7
+    max_days_ahead: int = 7,
+    increment_minutes: int = 30
 ) -> Optional[datetime]:
     """
     Find the next available time slot for a booking.
@@ -199,6 +200,7 @@ def get_next_available_slot(
         start_from: Start searching from this time (default: now)
         lead_time_hours: Minimum lead time required
         max_days_ahead: Maximum days to search ahead
+        increment_minutes: Time slot increment (default: 30 minutes)
 
     Returns:
         Next available start datetime, or None if not found
@@ -206,23 +208,34 @@ def get_next_available_slot(
     if not schedule:
         return None
 
-    # Start from now + lead time
+    # Start from now
+    now = datetime.now()
     if start_from is None:
-        start_from = datetime.now()
+        start_from = now
 
+    # Apply lead time requirement
     if lead_time_hours > 0:
-        start_from = max(start_from, datetime.now() + timedelta(hours=lead_time_hours))
+        min_start_time = now + timedelta(hours=lead_time_hours)
+        start_from = max(start_from, min_start_time)
 
-    # Round up to next hour for cleaner slots
-    start_from = start_from.replace(minute=0, second=0, microsecond=0)
-    if start_from.minute > 0:
-        start_from += timedelta(hours=1)
+    # Round down to the nearest increment to avoid skipping available slots
+    # This ensures we check from the current time, not skip ahead unnecessarily
+    if start_from <= now:
+        # Start from now, rounded down to nearest increment
+        rounded_minute = (now.minute // increment_minutes) * increment_minutes
+        start_from = now.replace(minute=rounded_minute, second=0, microsecond=0)
+        # If we rounded down into the past, move to next increment
+        if start_from < now:
+            start_from += timedelta(minutes=increment_minutes)
+    else:
+        # Round down to nearest increment for future start times
+        rounded_minute = (start_from.minute // increment_minutes) * increment_minutes
+        start_from = start_from.replace(minute=rounded_minute, second=0, microsecond=0)
 
-    # Build list of blocked time ranges from existing bookings
+    # Build list of blocked time ranges from existing bookings (only future bookings)
     blocked_ranges = []
     for booking in existing_bookings:
         if hasattr(booking, 'start_datetime') and hasattr(booking, 'end_datetime'):
-            # Add buffer to booking times
             booking_start = booking.start_datetime
             booking_end = booking.end_datetime
 
@@ -231,12 +244,19 @@ def get_next_available_slot(
             if isinstance(booking_end, str):
                 booking_end = datetime.fromisoformat(booking_end)
 
-            # Add buffer time
+            # Only consider future bookings (or bookings that haven't ended yet)
+            if booking_end <= now:
+                continue  # Skip past bookings
+
+            # Buffer is added AFTER bookings end (not before start)
+            # This creates a gap after each booking for cleanup/preparation
             if buffer_minutes > 0:
-                booking_start = booking_start - timedelta(minutes=buffer_minutes)
                 booking_end = booking_end + timedelta(minutes=buffer_minutes)
 
             blocked_ranges.append((booking_start, booking_end))
+
+    # Sort blocked ranges by start time for efficiency
+    blocked_ranges.sort(key=lambda x: x[0])
 
     # Search for available slot
     end_search = start_from + timedelta(days=max_days_ahead)
@@ -245,23 +265,29 @@ def get_next_available_slot(
     while current < end_search:
         proposed_end = current + timedelta(minutes=duration_minutes)
 
-        # Check if within schedule
+        # Check if start time is within schedule
         if is_time_in_schedule(current, schedule):
-            # Check for conflicts with existing bookings
-            has_conflict = False
-            for block_start, block_end in blocked_ranges:
-                # Check if proposed slot overlaps with blocked range
-                if (current < block_end and proposed_end > block_start):
-                    has_conflict = True
-                    break
+            # Check if end time is also within schedule
+            if is_time_in_schedule(proposed_end, schedule):
+                # Check for conflicts with existing bookings
+                has_conflict = False
+                for block_start, block_end in blocked_ranges:
+                    # Skip blocked ranges that are completely in the past
+                    if block_end <= current:
+                        continue
+                    # If we've passed all relevant blocked ranges, we can stop checking
+                    if block_start > proposed_end:
+                        break
+                    # Check if proposed slot overlaps with blocked range
+                    if (current < block_end and proposed_end > block_start):
+                        has_conflict = True
+                        break
 
-            if not has_conflict:
-                # Also verify the end time is in schedule
-                if is_time_in_schedule(proposed_end, schedule):
+                if not has_conflict:
                     return current
 
-        # Move to next time slot (30 min increments)
-        current += timedelta(minutes=30)
+        # Move to next time slot using the specified increment
+        current += timedelta(minutes=increment_minutes)
 
     return None
 

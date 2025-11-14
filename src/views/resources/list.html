@@ -93,7 +93,7 @@
                     {% if first_image.startswith('http') %}
                     {% set card_image = first_image %}
                     {% else %}
-                    {% set card_image = url_for('static', filename='images/' + first_image) %}
+                    {% set card_image = url_for('static', filename='uploads/' + first_image) %}
                     {% endif %}
                     {% if loop.index <= 6 %}
                     {# Eagerly load first 6 images for snappy initial display #}

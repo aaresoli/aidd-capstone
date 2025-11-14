@@ -1322,7 +1322,32 @@ a:hover {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 1.5rem;
-    align-items: center;
+    align-items: flex-start;
+}
+
+.admin-hero .hero-content {
+    min-width: 0;
+}
+
+@media (min-width: 992px) {
+    .admin-hero {
+        grid-template-columns: 2fr 1fr 2fr;
+        align-items: center;
+    }
+    
+    .admin-hero .hero-content {
+        grid-column: 1;
+    }
+    
+    .admin-hero .hero-meta {
+        grid-column: 2;
+        justify-content: center;
+    }
+    
+    .admin-hero .hero-buttons {
+        grid-column: 3;
+        justify-content: flex-end;
+    }
 }
 
 .hero-meta {
@@ -1359,6 +1384,13 @@ a:hover {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1.25rem;
+    align-items: stretch;
+}
+
+.insight-grid .insight-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .insight-card {
@@ -1374,9 +1406,15 @@ a:hover {
 
 .insight-card header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.insight-card header .ghost-link {
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .insight-card--accent {
@@ -1410,6 +1448,7 @@ a:hover {
     font-size: 2.2rem;
     font-weight: 600;
     margin: 0.25rem 0;
+    line-height: 1.2;
 }
 
 .insight-subtext {
@@ -1473,6 +1512,12 @@ a:hover {
     display: flex;
     align-items: center;
     gap: 0.85rem;
+    min-height: 2rem;
+}
+
+.progress-list__item .progress {
+    flex: 1;
+    min-width: 0;
 }
 
 .progress-list__label {
@@ -1536,6 +1581,17 @@ a:hover {
     justify-content: space-between;
     gap: 0.75rem;
     align-items: flex-start;
+    padding: 0.5rem 0;
+}
+
+.stacked-list__item > div {
+    min-width: 0;
+    flex: 1;
+}
+
+.stacked-list__item strong {
+    word-break: break-word;
+    line-height: 1.4;
 }
 
 .stacked-list--compact .stacked-list__item {
@@ -1545,6 +1601,295 @@ a:hover {
 .small-table .table td {
     padding-top: 0.7rem;
     padding-bottom: 0.7rem;
+}
+
+.admin-shell .table th {
+    font-weight: 600;
+    color: var(--ink-soft);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.75rem 0.5rem;
+    border-bottom: 2px solid var(--border-light);
+}
+
+.admin-shell .table td {
+    padding: 0.875rem 0.5rem;
+    vertical-align: middle;
+}
+
+.admin-shell .table-responsive {
+    margin: 0 -0.5rem;
+    padding: 0 0.5rem;
+}
+
+/* Bookings Table Styling */
+.bookings-table {
+    margin-bottom: 0;
+}
+
+.bookings-table thead th {
+    font-weight: 600;
+    color: var(--ink-soft);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1rem 0.75rem;
+    border-bottom: 2px solid var(--border-light);
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.bookings-table tbody td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.bookings-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.bookings-table tbody tr:hover {
+    background-color: var(--iu-surface-alt);
+}
+
+.booking-action-form {
+    min-width: 260px;
+    max-width: 280px;
+}
+
+.booking-action-form .input-group {
+    width: 100%;
+}
+
+.booking-action-form .form-select,
+.booking-action-form .form-control {
+    font-size: 0.8125rem;
+}
+
+.booking-action-form textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+/* Status Badge Improvements */
+.badge.status-pending,
+.badge.status-approved,
+.badge.status-rejected,
+.badge.status-cancelled,
+.badge.status-completed {
+    font-weight: 600;
+    font-size: 0.75rem;
+    padding: 0.35rem 0.75rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+}
+
+/* Nav Pills Alignment */
+.nav-pills {
+    gap: 0.5rem;
+}
+
+.nav-pills .nav-link {
+    border-radius: var(--radius-full);
+    padding: 0.5rem 1.25rem;
+    font-weight: 500;
+    transition: all var(--transition-base);
+}
+
+.nav-pills .nav-link.active {
+    background-color: var(--iu-crimson);
+    color: white;
+}
+
+.nav-pills .nav-link:not(.active) {
+    background-color: var(--iu-surface-alt);
+    color: var(--ink-soft);
+}
+
+.nav-pills .nav-link:not(.active):hover {
+    background-color: var(--iu-surface-hover);
+    color: var(--ink);
+}
+
+/* Shared table styling for all admin tables */
+.users-table,
+.resources-table,
+.reviews-table,
+.reports-table {
+    margin-bottom: 0;
+}
+
+.users-table thead th,
+.resources-table thead th,
+.reviews-table thead th,
+.reports-table thead th {
+    font-weight: 600;
+    color: var(--ink-soft);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1rem 0.75rem;
+    border-bottom: 2px solid var(--border-light);
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.users-table tbody td,
+.resources-table tbody td,
+.reviews-table tbody td,
+.reports-table tbody td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.users-table tbody tr:last-child td,
+.resources-table tbody tr:last-child td,
+.reviews-table tbody tr:last-child td,
+.reports-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.users-table tbody tr:hover,
+.resources-table tbody tr:hover,
+.reviews-table tbody tr:hover,
+.reports-table tbody tr:hover {
+    background-color: var(--iu-surface-alt);
+}
+
+.resource-action-form {
+    min-width: 200px;
+    max-width: 280px;
+}
+
+.resource-action-form .input-group {
+    width: 100%;
+}
+
+.resource-action-form .form-select,
+.resource-action-form .form-control {
+    font-size: 0.8125rem;
+}
+
+/* Responsive improvements for all admin tables */
+@media (max-width: 1200px) {
+    .booking-action-form,
+    .resource-action-form {
+        min-width: 240px;
+        max-width: 260px;
+    }
+    
+    .bookings-table thead th,
+    .bookings-table tbody td,
+    .users-table thead th,
+    .users-table tbody td,
+    .resources-table thead th,
+    .resources-table tbody td,
+    .reviews-table thead th,
+    .reviews-table tbody td,
+    .reports-table thead th,
+    .reports-table tbody td {
+        padding: 0.875rem 0.5rem;
+        font-size: 0.875rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .bookings-table,
+    .users-table,
+    .resources-table,
+    .reviews-table,
+    .reports-table {
+        font-size: 0.8125rem;
+    }
+    
+    .bookings-table thead th,
+    .users-table thead th,
+    .resources-table thead th,
+    .reviews-table thead th,
+    .reports-table thead th {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    .bookings-table tbody td,
+    .users-table tbody td,
+    .resources-table tbody td,
+    .reviews-table tbody td,
+    .reports-table tbody td {
+        padding: 0.75rem 0.5rem;
+    }
+    
+    .booking-action-form,
+    .resource-action-form {
+        min-width: 100%;
+        max-width: 100%;
+    }
+    
+    .booking-action-form .input-group,
+    .resource-action-form .input-group {
+        flex-wrap: nowrap;
+    }
+}
+
+/* Button group alignment improvements */
+.admin-shell .d-flex.gap-2 {
+    flex-wrap: wrap;
+}
+
+.admin-shell .btn-sm {
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+/* Form alignment in tables */
+.admin-shell table form {
+    margin: 0;
+}
+
+.admin-shell table .input-group {
+    display: flex;
+    align-items: stretch;
+}
+
+.admin-shell table .input-group .form-select,
+.admin-shell table .input-group .form-control {
+    flex: 1;
+    min-width: 0;
+}
+
+.admin-shell table .input-group .btn {
+    flex-shrink: 0;
+}
+
+/* Empty state improvements */
+.admin-shell .empty-state {
+    padding: 3rem 1.5rem;
+    text-align: center;
+}
+
+.admin-shell .empty-state i {
+    display: block;
+    margin-bottom: 1rem;
+}
+
+/* Badge improvements for admin tables */
+.admin-shell .badge {
+    font-weight: 600;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+}
+
+.admin-shell .badge.bg-light {
+    background-color: var(--iu-surface-alt) !important;
+    color: var(--ink) !important;
+    border: 1px solid var(--border-light);
 }
 
 @media (max-width: 992px) {
@@ -2030,6 +2375,12 @@ a:hover {
     background: rgba(108, 117, 125, 0.12);
     color: #495057;
     border: 1px solid rgba(108, 117, 125, 0.25);
+}
+
+.status-completed {
+    background: rgba(13, 110, 253, 0.12);
+    color: #084298;
+    border: 1px solid rgba(13, 110, 253, 0.25);
 }
 
 .status-published {
@@ -3691,10 +4042,22 @@ body {
 .card-head {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+    gap: 1rem;
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
     border-bottom: 2px solid var(--border-light);
+}
+
+.card-head > div {
+    flex: 1;
+    min-width: 0;
+}
+
+.card-head .ghost-link {
+    flex-shrink: 0;
+    white-space: nowrap;
+    margin-top: 0.25rem;
 }
 
 .card-head h3,

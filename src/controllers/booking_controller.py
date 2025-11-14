@@ -32,6 +32,7 @@ from src.utils.datetime_helpers import (
 )
 from src.utils.availability import (
     parse_schedule,
+    format_schedule_display,
     validate_booking_times,
     get_next_available_slot
 )
@@ -460,6 +461,10 @@ def detail(booking_id):
     google_connection = CalendarCredentialDAL.get_credentials(current_user.user_id, GOOGLE_PROVIDER)
     calendar_event = CalendarEventDAL.get_event(booking_id, current_user.user_id, GOOGLE_PROVIDER)
 
+    # Add availability schedule information
+    schedule = parse_schedule(getattr(resource, 'availability_schedule', None))
+    schedule_display = format_schedule_display(schedule) if schedule else None
+
     return render_template(
         'bookings/detail.html',
         booking=booking_details,
@@ -467,7 +472,8 @@ def detail(booking_id):
         can_mark_complete_owner=can_mark_complete_owner,
         can_mark_complete_requester=can_mark_complete_requester,
         google_connection=google_connection,
-        calendar_event=calendar_event
+        calendar_event=calendar_event,
+        schedule_display=schedule_display
     )
 
 @booking_bp.route('/review-requests')
