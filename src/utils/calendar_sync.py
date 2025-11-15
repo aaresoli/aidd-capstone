@@ -47,13 +47,29 @@ def _ensure_google_libs():
 
 
 def _localize(dt_value, tz_name: str):
+    """
+    Convert a datetime value to the specified timezone.
+    
+    Booking times are stored in UTC (naive) in the database.
+    We need to:
+    1. Parse the datetime (assumes UTC if naive)
+    2. Convert from UTC to the target timezone
+    3. Return timezone-aware datetime
+    """
     dt_obj = parse_datetime(dt_value)
     if not dt_obj:
         return None
-    tz = ZoneInfo(tz_name)
-    if dt_obj.tzinfo:
-        return dt_obj.astimezone(tz)
-    return dt_obj.replace(tzinfo=tz)
+    
+    target_tz = ZoneInfo(tz_name)
+    
+    # If datetime is naive, assume it's UTC (as per database storage convention)
+    if dt_obj.tzinfo is None:
+        # Attach UTC timezone, then convert to target timezone
+        dt_utc = dt_obj.replace(tzinfo=ZoneInfo('UTC'))
+        return dt_utc.astimezone(target_tz)
+    else:
+        # Already timezone-aware, convert to target timezone
+        return dt_obj.astimezone(target_tz)
 
 
 def _escape_ics(value) -> str:

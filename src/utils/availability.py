@@ -135,12 +135,22 @@ def validate_booking_times(
 ) -> Tuple[bool, Optional[str]]:
     """
     Validate booking times against resource availability and rules.
+    
+    Note: start_dt and end_dt are in UTC (naive), but schedule times are in local timezone.
+    We need to convert UTC times to local timezone for schedule comparison.
 
     Returns: (is_valid, error_message)
     """
     # Use UTC time (naive) for internal calculations since all DB times are UTC
     from zoneinfo import ZoneInfo
+    from src.config import Config
     now = datetime.now(ZoneInfo('UTC')).replace(tzinfo=None)
+    
+    # Convert UTC times to local timezone for schedule comparison
+    # Schedule times are stored in local timezone format
+    local_tz = ZoneInfo(Config.TIMEZONE)
+    start_dt_local = start_dt.replace(tzinfo=ZoneInfo('UTC')).astimezone(local_tz).replace(tzinfo=None)
+    end_dt_local = end_dt.replace(tzinfo=ZoneInfo('UTC')).astimezone(local_tz).replace(tzinfo=None)
 
     # Check duration
     duration = (end_dt - start_dt).total_seconds() / 60
@@ -164,16 +174,40 @@ def validate_booking_times(
 
     # Check against schedule
     if schedule:
-        # Check if start and end times are within schedule
-        if not is_time_in_schedule(start_dt, schedule):
-            return False, f"Resource is not available at {start_dt.strftime('%A %I:%M %p')}"
+        # Check if start time is within schedule (using local time)
+        if not is_time_in_schedule(start_dt_local, schedule):
+            return False, f"Resource is not available at {start_dt_local.strftime('%A %I:%M %p')}"
 
-        if not is_time_in_schedule(end_dt, schedule):
-            return False, f"Resource closes before {end_dt.strftime('%I:%M %p')} on {end_dt.strftime('%A')}"
+        # For end time, check if it's before the resource closes (not if it's exactly at closing)
+        # Get the closing time for the end date's day
+        end_day_name = end_dt_local.strftime('%A').lower()
+        end_day_schedule = schedule.get(end_day_name, [])
+        
+        if not end_day_schedule:
+            return False, f"Resource is closed on {end_dt_local.strftime('%A')}"
+        
+        # Find the latest closing time for this day
+        latest_close_time = None
+        for window in end_day_schedule:
+            window_end = parse_time_string(window.get('end', '23:59'))
+            if window_end:
+                if latest_close_time is None or window_end > latest_close_time:
+                    latest_close_time = window_end
+        
+        # Check if booking end time is before or at the closing time
+        # Allow bookings that end exactly at closing time (end_time <= latest_close_time)
+        end_time = end_dt_local.time()
+        if latest_close_time and end_time > latest_close_time:
+            # Format closing time for error message (use datetime for proper formatting)
+            from datetime import datetime as dt
+            close_dt = dt.combine(dt.today(), latest_close_time)
+            close_time_str = close_dt.strftime('%I:%M %p').lstrip('0')
+            return False, f"Resource closes at {close_time_str} on {end_dt_local.strftime('%A')}"
 
-        # For multi-day bookings, check each day
-        current = start_dt
-        while current < end_dt:
+        # For multi-day bookings, check each day (using local time)
+        current = start_dt_local
+        end_local = end_dt_local
+        while current < end_local:
             if not is_time_in_schedule(current, schedule):
                 return False, f"Resource is not available during requested time period"
             current += timedelta(hours=1)

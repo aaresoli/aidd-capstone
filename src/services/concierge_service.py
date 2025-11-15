@@ -13,10 +13,15 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from flask import current_app, has_app_context
 
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
 from src.config import Config
 from src.data_access import get_db
 from src.data_access.resource_dal import ResourceDAL
+from src.data_access.booking_dal import BookingDAL
 from src.services.llm_client import LocalLLMClient, LocalLLMUnavailableError
+from src.utils.availability import parse_schedule, get_next_available_slot, is_time_in_schedule, parse_time_string
 
 
 @dataclass(frozen=True)
@@ -80,12 +85,17 @@ class ConciergeService:
         # Detect if this is a greeting/small talk vs. actual resource query
         is_greeting = self._is_greeting_or_small_talk(cleaned)
         
+        # Check if this is an availability question
+        availability_result = None
+        if not is_greeting:
+            availability_result = self._check_availability_question(cleaned, published_only=published_only)
+        
         keywords = self._extract_keywords(cleaned) or self._tokenize(cleaned)
         
-        # Only search for resources if it's not just a greeting
+        # Only search for resources if it's not just a greeting and not an availability question
         resources = []
         doc_chunks = []
-        if not is_greeting:
+        if not is_greeting and not availability_result:
             resources = self._resource_matches(cleaned, keywords, category=category, published_only=published_only)
             doc_chunks = self._context_matches(keywords)
         
@@ -93,15 +103,29 @@ class ConciergeService:
         stats = {} if is_greeting else self._build_insights()
         context_block = self._format_context_block(resources, doc_chunks, {})  # Empty stats to skip in context
 
-        llm_answer, llm_error = self._call_llm(cleaned, context_block, is_greeting=is_greeting)
-        
-        # Use personalized fallback for greetings
-        if is_greeting and not llm_answer:
-            fallback = "Hello! 👋 I'm your Campus Resource Concierge, and I'm here to help you find the perfect study spaces, maker labs, equipment, and event venues around IU Bloomington. What can I help you discover today?"
+        # If this is an availability question, return the availability result directly
+        if availability_result:
+            self.logger.info('Handling as availability question, skipping LLM')
+            answer = availability_result
+            llm_answer = None
+            llm_error = None
         else:
-            fallback = self._compose_fallback(resources, doc_chunks, stats)
-        
-        answer = llm_answer or fallback
+            # Always try to use LLM for intelligent responses
+            self.logger.info('Calling LLM for question: %s (has_context: %s)', 
+                           cleaned[:50], bool(context_block.strip()))
+            llm_answer, llm_error = self._call_llm(cleaned, context_block, is_greeting=is_greeting)
+            
+            # Use personalized fallback for greetings
+            if is_greeting and not llm_answer:
+                fallback = "Hello! 👋 I'm your Campus Resource Concierge, and I'm here to help you find the perfect study spaces, maker labs, equipment, and event venues around IU Bloomington. What can I help you discover today?"
+            else:
+                fallback = self._compose_fallback(resources, doc_chunks, stats)
+            
+            answer = llm_answer or fallback
+            if llm_answer:
+                self.logger.info('LLM provided answer (length: %d)', len(llm_answer))
+            else:
+                self.logger.info('Using fallback response (LLM unavailable or returned empty)')
 
         return {
             'question': cleaned,
@@ -249,22 +273,59 @@ class ConciergeService:
             )
             user_prompt = question.strip()
         else:
-            # Resource-focused response with personality
-            system_prompt = (
-                "You are a knowledgeable and friendly Campus Resource Concierge for Indiana University Bloomington. "
-                "You help students, faculty, and staff find the perfect campus resources. "
-                "You're enthusiastic, helpful, and genuinely want to make their campus experience better. "
-                "Answer ONLY using the CONTEXT below. Be conversational and engaging (3-5 sentences). "
-                "IMPORTANT: Only mention resources from the CONTEXT that are ACTUALLY relevant to the question. "
-                "If the user asks for 'study rooms', only mention resources in the 'Study Room' category. "
-                "If they ask for 'lab equipment', only mention 'Lab Equipment' resources. "
-                "Do NOT mention resources from unrelated categories (e.g., don't mention auditoriums when asked about study rooms). "
-                "If the CONTEXT contains relevant resources, mention them naturally using **bold** for resource names and explain why they're helpful. "
-                "If the CONTEXT doesn't contain relevant resources, be honest and suggest they try rephrasing or ask about something else. "
-                "Never invent or guess details. Show personality while staying accurate and helpful. "
-                "Format your response with clear paragraphs, proper spacing, and use **bold** for important resource names or key terms."
-            )
-            user_prompt = f"{question.strip()}\n\nCONTEXT:\n{context_block.strip()}"
+            # Intelligent response that can handle both resource questions and general questions
+            has_context = context_block.strip() and context_block.strip() != "RESOURCES: None found."
+            
+            if has_context:
+                system_prompt = (
+                    "You are a knowledgeable and friendly Campus Resource Concierge for Indiana University Bloomington. "
+                    "You help students, faculty, and staff with campus resources and general questions about IU Bloomington. "
+                    "You're enthusiastic, helpful, and genuinely want to make their campus experience better. "
+                    "\n"
+                    "When answering questions about campus resources:\n"
+                    "- Use the CONTEXT below which contains relevant resources and documentation\n"
+                    "- Only mention resources from the CONTEXT that are ACTUALLY relevant to the question\n"
+                    "- If the user asks for 'study rooms', only mention resources in the 'Study Room' category\n"
+                    "- If they ask for 'lab equipment', only mention 'Lab Equipment' resources\n"
+                    "- Do NOT mention resources from unrelated categories\n"
+                    "- Mention resources naturally using **bold** for resource names and explain why they're helpful\n"
+                    "\n"
+                    "When answering general questions (not about specific resources):\n"
+                    "- Use your knowledge about Indiana University Bloomington, campus life, and general topics\n"
+                    "- Be helpful, accurate, and conversational\n"
+                    "- If you don't know something, admit it and suggest where they might find the information\n"
+                    "- You can answer questions about campus services, student life, academic programs, facilities, etc.\n"
+                    "\n"
+                    "Always:\n"
+                    "- Be conversational and engaging (3-5 sentences for simple questions, more for complex topics)\n"
+                    "- Show personality while staying accurate and helpful\n"
+                    "- Format your response with clear paragraphs, proper spacing, and use **bold** for important names or key terms\n"
+                    "- If the CONTEXT doesn't contain relevant resources but the question is about resources, be honest and suggest they try rephrasing"
+                )
+                user_prompt = f"{question.strip()}\n\nCONTEXT:\n{context_block.strip()}"
+            else:
+                # No context available - answer general questions intelligently
+                system_prompt = (
+                    "You are a knowledgeable and friendly Campus Resource Concierge for Indiana University Bloomington. "
+                    "You help students, faculty, and staff with questions about IU Bloomington, campus resources, student life, and general topics. "
+                    "You're enthusiastic, helpful, and genuinely want to make their campus experience better. "
+                    "\n"
+                    "Answer the user's question to the best of your ability. You can discuss:\n"
+                    "- Campus resources and facilities\n"
+                    "- Student life and services\n"
+                    "- Academic programs and departments\n"
+                    "- Campus locations and buildings\n"
+                    "- General questions about IU Bloomington\n"
+                    "- General knowledge questions (when appropriate)\n"
+                    "\n"
+                    "Guidelines:\n"
+                    "- Be conversational, helpful, and engaging\n"
+                    "- If you don't know something specific, admit it and suggest where they might find the information\n"
+                    "- Use **bold** for important names, locations, or key terms\n"
+                    "- Format your response with clear paragraphs and proper spacing\n"
+                    "- Keep responses appropriate in length (3-5 sentences for simple questions, more for complex topics)"
+                )
+                user_prompt = question.strip()
         
         messages = [
             {'role': 'system', 'content': system_prompt},
@@ -312,7 +373,15 @@ class ConciergeService:
                 
                 segments.append(resource_info)
         else:
-            segments.append("I couldn't find any specific resources matching your question in the current catalog.")
+            # For general questions without resources, provide a helpful message
+            segments.append(
+                "I'm here to help! However, I couldn't find specific resources matching your question in the current catalog. "
+                "You can ask me about:\n\n"
+                "• **Campus resources** - study rooms, labs, equipment, event spaces\n"
+                "• **General questions** - campus services, student life, facilities\n"
+                "• **Availability** - check if specific resources are available now\n\n"
+                "Try rephrasing your question or ask about something else!"
+            )
 
         if stats.get('most_requested'):
             segments.append("\nHere are some popular resources that might interest you:")
@@ -435,6 +504,213 @@ class ConciergeService:
                 prev_empty = False
         
         return '\n'.join(formatted)
+
+    # Availability checking ----------------------------------------------------
+
+    def _check_availability_question(self, question: str, *, published_only: bool = True) -> Optional[str]:
+        """
+        Check if the question is asking about availability and return a response.
+        Returns None if not an availability question, otherwise returns the answer.
+        
+        This should only trigger for specific availability questions about named resources.
+        """
+        question_lower = question.lower().strip()
+        
+        # More specific patterns that indicate availability questions about specific resources
+        # These patterns require a resource name to be present
+        availability_patterns = [
+            r'is\s+(?:the\s+)?(.+?)\s+available\s+now\??',  # "is the auditorium available now?"
+            r'is\s+(?:the\s+)?(.+?)\s+available\s+right\s+now\??',  # "is the auditorium available right now?"
+            r'when\s+is\s+(?:the\s+)?(.+?)\s+available\??',  # "when is the auditorium available?"
+            r'when\s+can\s+i\s+book\s+(?:the\s+)?(.+?)\??',  # "when can I book the auditorium?"
+            r'next\s+available\s+(?:slot|time)\s+for\s+(?:the\s+)?(.+?)\??',  # "next available slot for the auditorium"
+            r'(.+?)\s+available\s+now\??',  # "auditorium available now?"
+        ]
+        
+        resource_name = None
+        matched_pattern = None
+        
+        for pattern in availability_patterns:
+            match = re.search(pattern, question_lower)
+            if match:
+                potential_name = match.group(1).strip()
+                # Remove common trailing words that aren't part of the resource name
+                potential_name = re.sub(r'\s+(now|today|tomorrow|this\s+week|right\s+now)$', '', potential_name)
+                
+                # Only proceed if we have a meaningful resource name (at least 3 chars, not just common words)
+                if len(potential_name) >= 3 and potential_name not in ['it', 'this', 'that', 'there', 'here']:
+                    resource_name = potential_name
+                    matched_pattern = pattern
+                    break
+        
+        if not resource_name:
+            return None  # Not a specific availability question, let LLM handle it
+        
+        # Search for the resource
+        resources = ResourceDAL.search_resources(
+            keyword=resource_name,
+            status='published' if published_only else None,
+            per_page=5,
+            page=1
+        ) or []
+        
+        # Only handle availability if we found a matching resource
+        # Otherwise, let it go through normal LLM flow so it can answer intelligently
+        if not resources:
+            return None  # Resource not found, let LLM answer (might be a general question)
+        
+        # Use the first/best matching resource
+        resource = resources[0]
+        
+        # Check current availability
+        # Use UTC for database comparisons, but convert to local for schedule checks
+        now_utc = datetime.now(ZoneInfo('UTC')).replace(tzinfo=None)
+        local_tz = ZoneInfo(Config.TIMEZONE)
+        now_local = datetime.now(local_tz).replace(tzinfo=None)
+        
+        # Get all active bookings for this resource
+        bookings = BookingDAL.get_bookings_by_resource(resource.resource_id)
+        active_bookings = []
+        for b in bookings:
+            if b.status not in ('pending', 'approved'):
+                continue
+            end_dt = b.end_datetime
+            if isinstance(end_dt, str):
+                end_dt = datetime.fromisoformat(end_dt)
+            # Compare in UTC since bookings are stored in UTC
+            if end_dt > now_utc:
+                active_bookings.append(b)
+        
+        # Parse schedule
+        schedule = parse_schedule(getattr(resource, 'availability_schedule', None))
+        
+        # Check if resource is available right now
+        is_available_now = True
+        conflict_reason = None
+        
+        # Check if within operating hours (use local time for schedule)
+        if schedule:
+            if not is_time_in_schedule(now_local, schedule):
+                is_available_now = False
+                conflict_reason = "The resource is currently outside its operating hours."
+        
+        # Check for booking conflicts (use UTC for booking comparisons)
+        if is_available_now:
+            for booking in active_bookings:
+                start_dt = booking.start_datetime
+                end_dt = booking.end_datetime
+                
+                if isinstance(start_dt, str):
+                    start_dt = datetime.fromisoformat(start_dt)
+                if isinstance(end_dt, str):
+                    end_dt = datetime.fromisoformat(end_dt)
+                
+                # Check if current time overlaps with booking (compare in UTC)
+                if start_dt <= now_utc < end_dt:
+                    is_available_now = False
+                    conflict_reason = f"The resource is currently booked until {self._format_datetime(end_dt)}."
+                    break
+        
+        # Format response
+        if is_available_now:
+            response = f"✅ Yes! **{resource.title}** is available right now."
+            if schedule:
+                # Check when it closes today (use local time)
+                day_name = now_local.strftime('%A').lower()
+                day_schedule = schedule.get(day_name, [])
+                if day_schedule:
+                    latest_close = None
+                    for window in day_schedule:
+                        end_time_str = window.get('end', '23:59')
+                        end_time = parse_time_string(end_time_str)
+                        if end_time:
+                            close_dt = datetime.combine(now_local.date(), end_time)
+                            if latest_close is None or close_dt > latest_close:
+                                latest_close = close_dt
+                    if latest_close and latest_close > now_local:
+                        response += f" It's open until {self._format_datetime(latest_close)} today."
+        else:
+            response = f"❌ **{resource.title}** is not available right now."
+            if conflict_reason:
+                response += f" {conflict_reason}"
+            
+            # Find next available slot
+            next_slot = self._find_next_available_slot(resource, active_bookings, schedule)
+            if next_slot:
+                response += f"\n\n📅 The next available slot is {self._format_datetime(next_slot)}."
+            else:
+                response += "\n\nI couldn't find an available slot in the next 7 days. Please check back later or contact the resource owner."
+        
+        return response
+    
+    def _find_next_available_slot(self, resource, active_bookings, schedule) -> Optional[datetime]:
+        """Find the next available slot for a resource."""
+        if not schedule:
+            # No schedule defined, can't determine availability
+            return None
+        
+        # Use UTC for database comparisons
+        now_utc = datetime.now(ZoneInfo('UTC')).replace(tzinfo=None)
+        local_tz = ZoneInfo(Config.TIMEZONE)
+        now_local = datetime.now(local_tz).replace(tzinfo=None)
+        
+        # Get resource booking parameters
+        duration_minutes = getattr(resource, 'min_booking_minutes', 60) or 60
+        buffer_minutes = getattr(resource, 'buffer_minutes', 0) or 0
+        lead_time_hours = getattr(resource, 'min_lead_time_hours', 0) or 0
+        increment_minutes = getattr(resource, 'booking_increment_minutes', 30) or 30
+        
+        # Convert bookings to format expected by get_next_available_slot
+        # get_next_available_slot expects UTC times but uses local time for schedule checks
+        booking_list = []
+        for booking in active_bookings:
+            start_dt = booking.start_datetime
+            end_dt = booking.end_datetime
+            
+            if isinstance(start_dt, str):
+                start_dt = datetime.fromisoformat(start_dt)
+            if isinstance(end_dt, str):
+                end_dt = datetime.fromisoformat(end_dt)
+            
+            # Only include future bookings (compare in UTC)
+            if end_dt > now_utc:
+                booking_list.append(booking)
+        
+        # get_next_available_slot handles timezone conversion internally
+        # It expects UTC start_from but converts to local for schedule checks
+        return get_next_available_slot(
+            schedule=schedule,
+            existing_bookings=booking_list,
+            duration_minutes=duration_minutes,
+            buffer_minutes=buffer_minutes,
+            start_from=now_utc,  # Pass UTC time
+            lead_time_hours=lead_time_hours,
+            max_days_ahead=7,
+            increment_minutes=increment_minutes
+        )
+    
+    def _format_datetime(self, dt: datetime) -> str:
+        """Format datetime for display in availability responses."""
+        from zoneinfo import ZoneInfo
+        local_tz = ZoneInfo(Config.TIMEZONE)
+        
+        # Convert UTC to local time
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo('UTC'))
+        dt_local = dt.astimezone(local_tz).replace(tzinfo=None)
+        
+        now_local = datetime.now(local_tz).replace(tzinfo=None)
+        
+        # Format based on how far in the future
+        if dt_local.date() == now_local.date():
+            # Today
+            return f"today at {dt_local.strftime('%I:%M %p').lstrip('0')}"
+        elif dt_local.date() == (now_local.date() + timedelta(days=1)):
+            # Tomorrow
+            return f"tomorrow at {dt_local.strftime('%I:%M %p').lstrip('0')}"
+        else:
+            # Future date
+            return dt_local.strftime('%A, %B %d at %I:%M %p').lstrip('0')
 
     # Question classification --------------------------------------------------
 

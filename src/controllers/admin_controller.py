@@ -29,7 +29,10 @@ def admin_required(f):
 
 
 def format_datetime(value):
-    """Format datetime or ISO strings for admin tables"""
+    """Format datetime or ISO strings for admin tables in Bloomington, IN timezone"""
+    from zoneinfo import ZoneInfo
+    from src.config import Config
+    
     if isinstance(value, datetime):
         dt_obj = value
     else:
@@ -37,19 +40,51 @@ def format_datetime(value):
             dt_obj = datetime.fromisoformat(str(value))
         except ValueError:
             return value
-    return dt_obj.strftime('%b %d, %Y %I:%M %p')
+    
+    # If datetime is naive (from database), assume it's UTC
+    if dt_obj.tzinfo is None:
+        dt_obj = dt_obj.replace(tzinfo=ZoneInfo('UTC'))
+    
+    # Convert to Bloomington, IN timezone for display
+    local_tz = ZoneInfo(Config.TIMEZONE)
+    dt_local = dt_obj.astimezone(local_tz)
+    
+    return dt_local.strftime('%b %d, %Y %I:%M %p')
 
 
-def parse_datetime(value):
-    """Convert strings or datetimes into datetime objects."""
+def parse_datetime(value, convert_to_local=False):
+    """Convert strings or datetimes into datetime objects.
+    
+    Args:
+        value: datetime object or ISO string
+        convert_to_local: If True, convert from UTC to Bloomington timezone
+    
+    Returns:
+        datetime object (naive UTC by default, or timezone-aware local if convert_to_local=True)
+    """
+    from zoneinfo import ZoneInfo
+    from src.config import Config
+    
     if isinstance(value, datetime):
-        return value
-    if not value:
+        dt = value
+    elif not value:
         return None
-    try:
-        return datetime.fromisoformat(str(value))
-    except ValueError:
-        return None
+    else:
+        try:
+            dt = datetime.fromisoformat(str(value))
+        except ValueError:
+            return None
+    
+    if convert_to_local:
+        # If naive, assume it's UTC
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo('UTC'))
+        
+        # Convert to Bloomington timezone
+        local_tz = ZoneInfo(Config.TIMEZONE)
+        return dt.astimezone(local_tz)
+    
+    return dt
 
 @admin_bp.route('/')
 @login_required
@@ -168,7 +203,9 @@ def dashboard():
     publish_rate_pct = (status_counts['published'] / stats['total_resources']) * 100 if stats['total_resources'] else 0
     draft_share_pct = (status_counts['draft'] / stats['total_resources']) * 100 if stats['total_resources'] else 0
 
-    now = datetime.utcnow()
+    # Get current time in UTC (naive) for comparison with database times
+    from zoneinfo import ZoneInfo
+    now = datetime.now(ZoneInfo('UTC')).replace(tzinfo=None)
     pending_dates = []
     for booking in pending_bookings:
         created_value = parse_datetime(getattr(booking, 'created_at', None))

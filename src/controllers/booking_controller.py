@@ -65,10 +65,15 @@ def _promote_waitlist_for_resource(resource):
             WaitlistDAL.cancel_entry(entry.entry_id)
             continue
 
+        # Use getattr with default False to handle any edge cases where attribute might be missing
+        is_restricted = getattr(resource, 'is_restricted', False)
+        is_owner = resource.owner_id == requester.user_id
+        is_admin_user = requester.role == 'admin'
+        
         requires_manual_approval = (
-            resource.is_restricted and
-            resource.owner_id != requester.user_id and
-            requester.role != 'admin'
+            is_restricted and
+            not is_owner and
+            not is_admin_user
         )
         status = 'pending' if requires_manual_approval else 'approved'
 
@@ -345,12 +350,37 @@ def create(resource_id):
             return render_form(request.form, waitlist_offer=waitlist_offer)
         
         # Determine initial status based on resource configuration and requester role
+        # IMPORTANT: Re-fetch resource to ensure we have the latest data, especially is_restricted
+        # This prevents issues with stale/cached resource objects
+        resource = ResourceDAL.get_resource_by_id(resource_id)
+        if not resource:
+            flash('Resource not found', 'danger')
+            return redirect(url_for('resource.list_resources'))
+        
+        # Use getattr with default False to handle any edge cases where attribute might be missing
+        is_restricted = getattr(resource, 'is_restricted', False)
+        # Ensure is_restricted is a boolean (handle case where it might be 0/1 from database)
+        if isinstance(is_restricted, int):
+            is_restricted = bool(is_restricted)
+        
+        is_owner = resource.owner_id == current_user.user_id
+        is_admin_user = current_user.role == 'admin'
+        
         requires_manual_approval = (
-            resource.is_restricted and
-            resource.owner_id != current_user.user_id and
-            current_user.role != 'admin'
+            is_restricted and
+            not is_owner and
+            not is_admin_user
         )
         initial_status = 'pending' if requires_manual_approval else 'approved'
+        
+        # Debug logging for booking approval flow
+        current_app.logger.info(
+            f"[Booking Creation] Resource: {resource.title} (ID: {resource.resource_id}), "
+            f"is_restricted: {is_restricted} (type: {type(is_restricted)}), owner_id: {resource.owner_id}, "
+            f"requester_id: {current_user.user_id}, requester_role: {current_user.role}, "
+            f"is_owner: {is_owner}, is_admin: {is_admin_user}, "
+            f"requires_manual_approval: {requires_manual_approval}, initial_status: {initial_status}"
+        )
 
         try:
             if len(occurrences) > 1:
@@ -371,6 +401,19 @@ def create(resource_id):
                     status=initial_status,
                     recurrence_rule=recurrence_rule
                 )
+            
+            # Verify booking was created with correct status
+            if booking:
+                if booking.status != initial_status:
+                    current_app.logger.warning(
+                        f"[Booking Creation] Status mismatch! Expected: {initial_status}, "
+                        f"Got: {booking.status} for booking_id: {booking.booking_id}"
+                    )
+                else:
+                    current_app.logger.info(
+                        f"[Booking Creation] Booking created successfully with status: {booking.status} "
+                        f"(booking_id: {booking.booking_id})"
+                    )
 
             # Send notifications (simulated email)
             human_start = humanize_datetime(occurrences[0][0])

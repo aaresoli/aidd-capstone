@@ -6,6 +6,15 @@
         <div class="col-lg-7">
             <div class="dashboard-card">
                 <h2 class="mb-3">Book "{{ resource.title }}"</h2>
+                
+                <!-- User Identity Indicator -->
+                <div class="alert alert-info d-flex align-items-center gap-2 mb-3">
+                    <i class="bi bi-person-circle"></i>
+                    <div>
+                        <strong>Booking as:</strong> {{ current_user.name }} ({{ current_user.email }})
+                    </div>
+                </div>
+                
                 {% if resource.is_restricted %}
                 <div class="alert alert-warning d-flex align-items-center gap-2">
                     <i class="bi bi-shield-lock"></i>

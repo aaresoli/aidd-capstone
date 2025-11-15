@@ -42,7 +42,7 @@ class NotificationService:
             )
 
         # Also log to stdout to aid developers during local testing
-        print(f"[Notification::{channel}] → User {user_id} | {subject}\n{body}\n")
+        print(f"[Notification::{channel}] => User {user_id} | {subject}\n{body}\n")
 
     @staticmethod
     def _deliver_email(user_id, subject, body, recipient_email=None):

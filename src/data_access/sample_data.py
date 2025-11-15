@@ -677,6 +677,9 @@ def seed_sample_bookings(user_lookup, resource_lookup):
         if has_seeded:
             continue
         
+        # Use getattr for defensive access to is_restricted (check once per resource)
+        is_restricted = getattr(resource, 'is_restricted', False)
+        
         # Create bookings with different statuses
         # Past completed booking
         past_start = now - timedelta(days=7)
@@ -700,7 +703,7 @@ def seed_sample_bookings(user_lookup, resource_lookup):
             end_datetime=future_end,
             status='approved'
         )
-        if booking and resource.is_restricted:
+        if booking and is_restricted:
             # Add decision notes for restricted resource approval
             BookingDAL.update_booking_status(
                 booking.booking_id,
@@ -713,7 +716,7 @@ def seed_sample_bookings(user_lookup, resource_lookup):
         # Pending booking (for restricted resources, this will show pending approval)
         pending_start = now + timedelta(days=5)
         pending_end = pending_start + timedelta(hours=1.5)
-        if resource.is_restricted:
+        if is_restricted:
             # Create pending booking for restricted resource
             BookingDAL.create_booking(
                 resource_id=resource.resource_id,
@@ -759,7 +762,7 @@ def seed_sample_bookings(user_lookup, resource_lookup):
         booking_count += 1
         
         # Rejected booking (for restricted resources)
-        if resource.is_restricted:
+        if is_restricted:
             rejected_start = now + timedelta(days=9)
             rejected_end = rejected_start + timedelta(hours=3)
             rejected_booking = BookingDAL.create_booking(
@@ -797,7 +800,7 @@ def seed_sample_bookings(user_lookup, resource_lookup):
             booking_count += len(occurrences)
         
         # For restricted resources, create waitlist entries
-        if resource.is_restricted:
+        if is_restricted:
             waitlist_start = now + timedelta(days=10)
             waitlist_end = waitlist_start + timedelta(hours=2)
             WaitlistDAL.create_entry(
