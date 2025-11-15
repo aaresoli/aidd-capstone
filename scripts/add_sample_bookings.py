@@ -9,7 +9,8 @@ import os
 from datetime import datetime, timedelta
 
 # Get the database path
-DB_PATH = os.getenv('DATABASE_PATH', 'campus_hub.db')
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.getenv('DATABASE_PATH', os.path.join(BASE_DIR, 'campus_hub.db'))
 
 def add_sample_bookings():
     """Add sample bookings to all published resources"""

@@ -5,7 +5,9 @@ Verify the complete availability system setup
 import sqlite3
 import json
 
-DB_PATH = 'campus_hub.db'
+# Get project root directory (one level up from scripts)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, 'campus_hub.db')
 
 def verify_setup():
     """Check that all resources have schedules and bookings exist"""

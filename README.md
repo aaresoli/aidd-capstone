@@ -141,6 +141,15 @@ campus-resource-hub/
 │   ├── DT/
 │   ├── PM/
 │   └── shared/
+├── migrations/              # SQL migration files
+│   └── add_availability_fields.sql
+├── scripts/                 # Utility and maintenance scripts
+│   ├── migrations/          # Python migration scripts
+│   │   ├── apply_availability_migration.py
+│   │   └── migrate_existing_users.py
+│   ├── add_sample_bookings.py
+│   ├── add_schedules_to_resources.py
+│   └── verify_setup.py
 ├── src/
 │   ├── controllers/         # Flask route handlers (MVC Controllers)
 │   │   ├── auth_controller.py
@@ -201,6 +210,9 @@ campus-resource-hub/
 │   ├── test_booking.py
 │   ├── test_dal.py
 │   ├── test_integration.py
+│   ├── test_concierge_llm.py
+│   ├── test_llm_connection.py
+│   ├── test_import.py
 │   └── ... (additional test files)
 ├── requirements.txt
 └── README.md

@@ -35,6 +35,6 @@ Write-Host ".env file created at: $envPath" -ForegroundColor Green
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Cyan
 Write-Host "1. Restart your Flask application" -ForegroundColor White
-Write-Host "2. Test the connection by running: python test_llm_connection.py" -ForegroundColor White
+Write-Host "2. Test the connection by running: python tests/test_llm_connection.py" -ForegroundColor White
 Write-Host "3. Visit http://localhost:5000/concierge to use the AI concierge" -ForegroundColor White
 

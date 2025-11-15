@@ -7,8 +7,10 @@ import sqlite3
 import os
 
 # Get the database path from environment or use default
-DB_PATH = os.getenv('DATABASE_PATH', 'campus_hub.db')
-MIGRATION_FILE = 'migrations/add_availability_fields.sql'
+# Get project root directory (two levels up from this script)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DB_PATH = os.getenv('DATABASE_PATH', os.path.join(BASE_DIR, 'campus_hub.db'))
+MIGRATION_FILE = os.path.join(BASE_DIR, 'migrations', 'add_availability_fields.sql')
 
 def apply_migration():
     """Apply the availability fields migration"""

@@ -6,8 +6,8 @@ Run this once after adding email verification to avoid locking out existing user
 import sqlite3
 import os
 
-# Get database path
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Get database path (project root is two levels up from scripts/migrations)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DATABASE_PATH = os.path.join(BASE_DIR, 'campus_hub.db')
 
 def migrate_existing_users():

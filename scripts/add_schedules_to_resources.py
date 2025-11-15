@@ -9,7 +9,8 @@ import random
 import os
 
 # Get the database path
-DB_PATH = os.getenv('DATABASE_PATH', 'campus_hub.db')
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.getenv('DATABASE_PATH', os.path.join(BASE_DIR, 'campus_hub.db'))
 
 # Schedule templates (matching availability.py)
 SCHEDULE_TEMPLATES = {
