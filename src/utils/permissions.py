@@ -29,26 +29,57 @@ def owns_resource(resource):
 
 def can_manage_resource(resource):
     """
-    Return True if the current user is allowed to manage the given resource.
-    Admins always can; staff can manage their own resources.
+    Check if current user can manage (edit/delete) a resource.
+    
+    Resource owners can always manage their own resources. Admins have
+    universal management privileges. This is used for edit/delete operations
+    and booking approval workflows.
+    
+    Args:
+        resource: Resource model instance to check
+        
+    Returns:
+        bool: True if user can manage the resource, False otherwise
     """
     return is_admin() or owns_resource(resource)
 
 
 def can_view_booking(booking, resource):
     """
-    Determine whether the current user can view the booking details page.
-    Requesters can view their own bookings; resource owners and admins can view as well.
+    Check if current user can view booking details.
+    
+    Users can view their own bookings (as requester). Resource owners and
+    admins can view any booking for their resources. This provides privacy
+    while allowing necessary oversight.
+    
+    Args:
+        booking: Booking model instance to check
+        resource: Resource model instance associated with the booking
+        
+    Returns:
+        bool: True if user can view the booking, False otherwise
     """
     if not current_user.is_authenticated:
         return False
+    # Requesters can always view their own bookings
     if booking and booking.requester_id == current_user.user_id:
         return True
+    # Resource owners and admins can view bookings for their resources
     return can_manage_resource(resource)
 
 
 def can_act_on_booking(resource):
     """
-    Return True if the current user can approve/reject a booking tied to the resource.
+    Check if current user can approve/reject bookings for a resource.
+    
+    Used for booking review workflows. Only resource owners and admins
+    can make approval decisions. This determines if approve/reject buttons
+    should be shown in the UI.
+    
+    Args:
+        resource: Resource model instance to check
+        
+    Returns:
+        bool: True if user can approve/reject bookings, False otherwise
     """
     return can_manage_resource(resource)

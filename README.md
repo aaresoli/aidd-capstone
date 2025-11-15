@@ -257,20 +257,120 @@ Only these three accounts are created by default so role-based workflows stay fo
 
 ## 🧪 Running Tests
 
+The test suite uses **pytest** and includes comprehensive coverage of all critical functionality.
+
+### Quick Start
+
 ```bash
 # Run all tests
 pytest
 
+# Run with verbose output
+pytest -v
+
+# Run with coverage report
+pytest --cov=src tests/
+
 # Run specific test file
 pytest tests/test_booking.py
 
-# Run with coverage
-pytest --cov=src tests/
+# Run specific test
+pytest tests/test_booking.py::test_booking_conflict_detection
 ```
 
-- Unit tests cover validation, DAL CRUD operations, and booking conflict/status logic.
-- Integration tests exercise the auth workflow and an end-to-end booking scenario (`tests/test_integration.py`).
-- Security regression checks guard against HTML injection and SQL injection attempts.
+### Test Categories
+
+#### 1. Unit Tests - Booking Logic
+Tests for booking conflict detection and status transitions:
+```bash
+pytest tests/test_booking.py -v
+```
+- ✅ `test_booking_conflict_detection` - Verifies overlapping bookings are detected
+- ✅ `test_booking_status_transitions` - Tests status changes (pending → approved → cancelled)
+- ✅ `test_waitlist_promotion_after_cancellation` - Tests waitlist promotion logic
+
+#### 2. Unit Tests - Data Access Layer (DAL)
+Tests for CRUD operations independent of Flask routes:
+```bash
+pytest tests/test_dal.py -v
+```
+- ✅ `test_resource_dal_crud` - Tests Create, Read, Update, Delete for resources
+- ✅ `test_booking_dal_roundtrip` - Tests booking CRUD operations
+- ✅ `test_sql_injection_guard` - Verifies parameterized queries prevent SQL injection
+- ✅ `test_count_helpers` - Tests counting and aggregation functions
+- ✅ `test_booking_analytics_helpers` - Tests analytics and reporting functions
+
+#### 3. Integration Tests - Auth Flow
+Tests for complete authentication workflow:
+```bash
+pytest tests/test_integration.py::test_auth_flow_register_login_dashboard -v
+```
+- ✅ `test_auth_flow_register_login_dashboard` - Complete flow: register → login → access protected route
+- ✅ `test_register_rejects_non_campus_email` - Validates email domain restrictions
+
+#### 4. End-to-End Tests - Booking Workflow
+Complete booking scenario through the UI:
+```bash
+pytest tests/test_integration.py::test_booking_end_to_end -v
+```
+- ✅ `test_booking_end_to_end` - Full workflow: register → login → browse resources → create booking → verify in database
+
+#### 5. Security Tests
+Tests for SQL injection and template escaping (XSS prevention):
+```bash
+# SQL Injection test
+pytest tests/test_dal.py::test_sql_injection_guard -v
+
+# Template escaping/XSS test
+pytest tests/test_integration.py::test_resource_description_sanitized -v
+```
+- ✅ `test_sql_injection_guard` - Verifies parameterized queries prevent SQL injection attacks
+- ✅ `test_resource_description_sanitized` - Verifies HTML/script tags are escaped in templates
+
+### Test Coverage
+
+```bash
+# Generate HTML coverage report
+pytest --cov=src --cov-report=html tests/
+
+# View coverage in terminal
+pytest --cov=src --cov-report=term tests/
+```
+
+### Test Requirements Met
+
+✅ **Unit tests for booking logic** - Conflict detection and status transitions  
+✅ **DAL CRUD unit tests** - Independent of Flask route handlers  
+✅ **Integration test for auth flow** - Register → login → protected route  
+✅ **End-to-end booking scenario** - Complete UI workflow  
+✅ **Security checks** - SQL injection and template escaping tests  
+✅ **pytest framework** - All tests run with pytest  
+✅ **Test instructions** - Documented in README
+
+### Test Files Overview
+
+| File | Purpose | Key Tests |
+|------|---------|-----------|
+| `test_booking.py` | Booking logic | Conflict detection, status transitions |
+| `test_dal.py` | Data Access Layer | CRUD operations, SQL injection prevention |
+| `test_integration.py` | Integration & E2E | Auth flow, booking workflow, XSS prevention |
+| `test_auth.py` | Authentication | Login, registration, password validation |
+| `test_validators.py` | Input validation | Email, password, string validation, HTML sanitization |
+| `test_concierge.py` | AI Concierge | AI output verification, data grounding |
+| `test_access_control.py` | Authorization | Role-based access control |
+| `test_messages.py` | Messaging | Threaded conversations |
+| `test_notifications.py` | Notifications | Notification delivery |
+
+### Running Tests in CI/CD
+
+For continuous integration, use:
+```bash
+pytest --cov=src --cov-report=xml --junitxml=test-results.xml tests/
+```
+
+This generates:
+- Coverage report in XML format
+- JUnit XML for CI/CD integration
 
 ## 📝 Creating Your First Admin User
 

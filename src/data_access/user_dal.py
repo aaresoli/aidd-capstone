@@ -12,7 +12,26 @@ class UserDAL:
     
     @staticmethod
     def create_user(name, email, password, role='student', department=None, email_verified=True):
-        """Create a new user with hashed password"""
+        """
+        Create a new user account with securely hashed password.
+        
+        Uses bcrypt for password hashing, which includes automatic salting.
+        This ensures passwords are never stored in plaintext and are resistant
+        to rainbow table attacks.
+        
+        Args:
+            name (str): User's full name
+            email (str): User's email address (should be validated before calling)
+            password (str): Plaintext password (will be hashed before storage)
+            role (str): User role - 'student', 'staff', or 'admin' (default: 'student')
+            department (str, optional): User's department/affiliation
+            email_verified (bool): Whether email has been verified (default: True)
+            
+        Returns:
+            User: Created user model instance or None on failure
+        """
+        # Hash password with bcrypt (includes automatic salt generation)
+        # Decode to string for database storage
         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         
         with get_db() as conn:
@@ -51,8 +70,21 @@ class UserDAL:
     
     @staticmethod
     def verify_password(email, password):
-        """Verify user password and return user if valid"""
+        """
+        Verify user credentials and return user if authentication succeeds.
+        
+        Uses bcrypt's constant-time comparison to prevent timing attacks.
+        Returns user object only if both email exists and password matches.
+        
+        Args:
+            email (str): User's email address
+            password (str): Plaintext password to verify
+            
+        Returns:
+            User: User model instance if credentials valid, None otherwise
+        """
         user = UserDAL.get_user_by_email(email)
+        # bcrypt.checkpw performs constant-time comparison to prevent timing attacks
         if user and bcrypt.checkpw(password.encode('utf-8'), user.password_hash.encode('utf-8')):
             return user
         return None
@@ -87,12 +119,27 @@ class UserDAL:
     
     @staticmethod
     def delete_user(user_id):
-        """Delete a user and all related data (cascading delete)"""
+        """
+        Delete a user account and all associated data.
+        
+        Performs cascading deletion of all user-related records to maintain
+        referential integrity. Deletes in dependency order (most dependent
+        records first) to avoid foreign key constraint violations.
+        
+        WARNING: This operation is irreversible. Use with caution, especially
+        in production. Consider soft deletion (is_suspended flag) instead.
+        
+        Args:
+            user_id (int): ID of the user to delete
+            
+        Returns:
+            bool: True if user was deleted, False if user_id not found
+        """
         with get_db() as conn:
             cursor = conn.cursor()
             
-            # Delete in order to respect foreign key constraints
-            # Start with most dependent records first
+            # Delete in dependency order to respect foreign key constraints
+            # Start with most dependent records (leaf nodes) first
             
             # 1. Delete calendar events and credentials (no dependencies)
             try:

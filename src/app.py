@@ -47,8 +47,17 @@ from src.utils.calendar_sync import GOOGLE_PROVIDER
 from src.services.notification_center import NotificationCenter
 
 def create_app():
-    """Application factory"""
-    # Use absolute paths for static and template folders
+    """
+    Application factory pattern for Flask app initialization.
+    
+    Creates and configures the Flask application instance with all necessary
+    blueprints, middleware, and context processors. This factory pattern allows
+    for easier testing and multiple app instances.
+    
+    Returns:
+        Flask: Configured Flask application instance ready to run
+    """
+    # Use absolute paths for static and template folders to avoid path resolution issues
     static_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), 'static'))
     template_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), 'views'))
     app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
@@ -79,7 +88,18 @@ def create_app():
     
     @login_manager.user_loader
     def load_user(user_id):
-        """Load user for Flask-Login"""
+        """
+        User loader callback for Flask-Login.
+        
+        This function is called by Flask-Login to retrieve a user object based on
+        the user ID stored in the session. It's required for session management.
+        
+        Args:
+            user_id (str): User ID from session cookie (converted to int)
+            
+        Returns:
+            User: User model instance if found, None otherwise
+        """
         user = UserDAL.get_user_by_id(int(user_id))
         return user
     
@@ -97,7 +117,13 @@ def create_app():
 
     @app.before_request
     def enforce_account_health():
-        """Force logout for suspended users before handling the request."""
+        """
+        Enforce account health checks before processing any request.
+        
+        This middleware runs before every request and automatically logs out
+        users whose accounts have been suspended. This provides an additional
+        security layer beyond database-level checks.
+        """
         if current_user.is_authenticated and getattr(current_user, 'is_suspended', False):
             logout_user()
             flash('Your account is currently suspended. Please contact an administrator.', 'danger')
@@ -105,13 +131,31 @@ def create_app():
 
     @app.context_processor
     def inject_cache_bust():
-        """Add cache busting timestamp to templates."""
+        """
+        Inject cache-busting timestamp into all templates.
+        
+        This prevents browser caching issues by appending a timestamp to static
+        asset URLs in templates. The timestamp updates on each app restart,
+        ensuring users get fresh CSS/JS files after deployments.
+        
+        Returns:
+            dict: Dictionary with 'cache_bust' key containing current Unix timestamp
+        """
         import time
         return dict(cache_bust=int(time.time()))
 
     @app.context_processor
     def inject_nav_notifications():
-        """Expose notification payload to every template."""
+        """
+        Inject user notifications into all templates for navigation bar display.
+        
+        This makes notification data available in every template without explicitly
+        passing it to each render_template call. Shows up to 6 recent notifications
+        in the navigation bar for authenticated users.
+        
+        Returns:
+            dict: Dictionary with notification items, total count, and new count
+        """
         payload = {'items': [], 'count': 0}
         if current_user.is_authenticated:
             payload = NotificationCenter.build_for_user(current_user, limit=6)
@@ -124,9 +168,19 @@ def create_app():
     # Main routes
     @app.route('/')
     def index():
-        """Homepage"""
+        """
+        Homepage route displaying featured resources with ratings.
+        
+        Shows the 6 most recent published resources along with their average
+        ratings and review counts. Resources with 4.5+ stars and at least 3
+        reviews are marked as "top rated" for special display.
+        
+        Returns:
+            Response: Rendered homepage template with featured resources
+        """
         featured_resources = ResourceDAL.get_all_resources(status='published', limit=6)
         resources_with_ratings = []
+        # Top-rated threshold: minimum 4.5 stars with at least 3 reviews
         top_rated_threshold = 4.5
         for resource in featured_resources:
             stats = ReviewDAL.get_resource_rating_stats(resource.resource_id)
@@ -139,7 +193,7 @@ def create_app():
                 'is_top_rated': avg_rating >= top_rated_threshold and total_reviews >= 3
             })
 
-        # Get total count of published resources for homepage stats
+        # Get total count of published resources for homepage stats display
         all_resources = ResourceDAL.get_all_resources(status='published')
         total_resources_count = len(all_resources) if all_resources else 0
 
@@ -149,7 +203,16 @@ def create_app():
     
     @app.route('/dashboard')
     def dashboard():
-        """User dashboard"""
+        """
+        User dashboard displaying personalized booking and resource information.
+        
+        Shows user's bookings, owned resources, pending booking requests,
+        waitlist entries, and activity statistics. Includes calendar connection
+        status and recent message threads.
+        
+        Returns:
+            Response: Rendered dashboard template or redirect to login if not authenticated
+        """
         if not current_user.is_authenticated:
             return redirect(url_for('auth.login'))
 
@@ -175,7 +238,18 @@ def create_app():
         user_cache = {current_user.user_id: current_user}
 
         def resolve_resource(resource_id):
-            """Fetch resource details with simple caching"""
+            """
+            Fetch resource details with request-scoped caching.
+            
+            Prevents redundant database queries when multiple bookings reference
+            the same resource by caching results for the duration of this request.
+            
+            Args:
+                resource_id (int): ID of the resource to fetch
+                
+            Returns:
+                Resource: Resource model instance or None if not found
+            """
             resource = resource_cache.get(resource_id)
             if resource is None:
                 resource = ResourceDAL.get_resource_by_id(resource_id)
@@ -183,7 +257,18 @@ def create_app():
             return resource
 
         def resolve_user(user_id):
-            """Fetch user details with simple caching"""
+            """
+            Fetch user details with request-scoped caching.
+            
+            Similar to resolve_resource, prevents duplicate queries when multiple
+            bookings reference the same user (requester or owner).
+            
+            Args:
+                user_id (int): ID of the user to fetch
+                
+            Returns:
+                User: User model instance or None if not found
+            """
             user = user_cache.get(user_id)
             if user is None:
                 user = UserDAL.get_user_by_id(user_id)
@@ -191,7 +276,16 @@ def create_app():
             return user
 
         def ensure_booking_metadata(booking):
-            """Attach metadata for rendering dashboard tables"""
+            """
+            Attach display metadata to booking objects for template rendering.
+            
+            Enriches booking objects with human-readable resource titles and
+            requester names needed for dashboard tables. Uses caching to avoid
+            repeated lookups for the same booking.
+            
+            Args:
+                booking: Booking model instance to enrich
+            """
             if booking.booking_id not in booking_details:
                 resource = resolve_resource(booking.resource_id)
                 title = resource.title if resource else f"Resource #{booking.resource_id}"
@@ -275,13 +369,26 @@ def create_app():
     
     # Template filters
     def _parse_datetime(value):
-        """Convert ISO strings or datetimes into datetime objects, and convert from UTC to local timezone."""
+        """
+        Convert ISO strings or datetime objects to timezone-aware datetime in local timezone.
+        
+        All database timestamps are stored in UTC (naive). This helper converts them
+        to the configured local timezone (America/Indiana/Indianapolis) for display
+        in templates.
+        
+        Args:
+            value: ISO string, datetime object, or None
+            
+        Returns:
+            datetime: Timezone-aware datetime in local timezone, or None if invalid
+        """
         from zoneinfo import ZoneInfo
         
         if isinstance(value, datetime):
             dt = value
         elif isinstance(value, str):
             try:
+                # Normalize 'Z' suffix to explicit UTC offset
                 normalized = value.replace('Z', '+00:00')
                 dt = datetime.fromisoformat(normalized)
             except ValueError:
@@ -301,24 +408,49 @@ def create_app():
 
     @app.template_filter('datetime_format')
     def datetime_format(value, format='%B %d, %Y at %I:%M %p'):
-        """Format datetime for display in local timezone"""
+        """
+        Jinja2 template filter to format datetimes in local timezone.
+        
+        Usage in templates: {{ booking.start_datetime | datetime_format }}
+        
+        Args:
+            value: Datetime value to format (ISO string or datetime object)
+            format: strftime format string (default: "January 15, 2024 at 02:30 PM")
+            
+        Returns:
+            str: Formatted datetime string or empty string if invalid
+        """
         dt_val = _parse_datetime(value)
         return dt_val.strftime(format) if dt_val else (value or '')
 
     @app.template_filter('relative_time')
     def relative_time(value):
-        """Return a short relative time string such as '2h ago'."""
+        """
+        Jinja2 template filter for human-readable relative time strings.
+        
+        Converts absolute timestamps to relative formats like "2h ago" or "Yesterday".
+        More user-friendly than absolute timestamps for recent activity.
+        
+        Usage in templates: {{ message.timestamp | relative_time }}
+        
+        Args:
+            value: Datetime value to convert (ISO string or datetime object)
+            
+        Returns:
+            str: Relative time string (e.g., "Just now", "2h ago", "Yesterday", "Jan 15, 2024")
+        """
         from zoneinfo import ZoneInfo
         
         dt_val = _parse_datetime(value)
         if dt_val is None:
             return ''
         
-        # Get current time in local timezone
+        # Get current time in local timezone for accurate delta calculation
         now = datetime.now(ZoneInfo(Config.TIMEZONE))
         delta = now - dt_val
         seconds = delta.total_seconds()
         
+        # Handle future dates (shouldn't happen, but be defensive)
         if seconds < 0:
             seconds = abs(seconds)
         
@@ -326,6 +458,7 @@ def create_app():
         hours = int(seconds // 3600)
         days = int(seconds // 86400)
         
+        # Progressive time intervals with appropriate granularity
         if seconds < 60:
             return 'Just now'
         if minutes < 60:
@@ -336,22 +469,49 @@ def create_app():
             return 'Yesterday'
         if days < 7:
             return f"{days}d ago"
+        # For older dates, show absolute date
         return dt_val.strftime('%b %d, %Y')
     
     @app.template_filter('nl2br')
     def nl2br(value):
-        """Convert newlines to <br> tags for HTML display."""
+        """
+        Jinja2 template filter to convert newlines to HTML line breaks.
+        
+        Preserves line breaks from plain text content when rendering in HTML.
+        Useful for descriptions, comments, and other multi-line text fields.
+        
+        Usage in templates: {{ resource.description | nl2br | safe }}
+        
+        Args:
+            value: String value that may contain newline characters
+            
+        Returns:
+            str: String with newlines replaced by <br> tags
+        """
         if value is None:
             return ''
         return str(value).replace('\n', '<br>')
     
     @app.template_filter('markdown_bold')
     def markdown_bold(value):
-        """Convert markdown-style **bold** to HTML <strong> tags."""
+        """
+        Jinja2 template filter to convert markdown bold syntax to HTML.
+        
+        Supports a subset of markdown: converts **text** to <strong>text</strong>.
+        This allows users to use simple markdown formatting in text fields.
+        
+        Usage in templates: {{ comment | markdown_bold | safe }}
+        
+        Args:
+            value: String that may contain markdown bold syntax (**text**)
+            
+        Returns:
+            str: String with markdown bold converted to HTML <strong> tags
+        """
         if value is None:
             return ''
         import re
-        # Convert **text** to <strong>text</strong>
+        # Convert **text** to <strong>text</strong> using non-greedy matching
         text = str(value)
         text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
         return text

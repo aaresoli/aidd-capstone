@@ -12,7 +12,16 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
-    """User registration"""
+    """
+    User registration endpoint.
+    
+    Handles both GET (display registration form) and POST (process registration)
+    requests. Validates all input fields, checks for duplicate emails, and
+    creates new user accounts with email verification tokens.
+    
+    Returns:
+        Response: Registration form (GET) or redirect to verification page (POST)
+    """
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     
@@ -98,7 +107,16 @@ def register():
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    """User login"""
+    """
+    User authentication endpoint.
+    
+    Handles both GET (display login form) and POST (authenticate user) requests.
+    Validates credentials, checks account status (suspended/verified), and
+    establishes user session via Flask-Login.
+    
+    Returns:
+        Response: Login form (GET) or redirect to dashboard (POST on success)
+    """
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     
@@ -117,12 +135,13 @@ def login():
         
         user = UserDAL.verify_password(email, password)
         if user:
-            # Check if account is suspended
+            # Security check: prevent login for suspended accounts
             if getattr(user, 'is_suspended', False):
                 flash('Your account is suspended. Contact an administrator for assistance.', 'danger')
                 return render_template('auth/login.html')
 
-            # Check if email is verified
+            # Email verification check: enforce verification if enabled in config
+            # This prevents unverified users from accessing the system
             verification_required = current_app.config.get('EMAIL_VERIFICATION_ENABLED', True)
             if verification_required and not getattr(user, 'email_verified', False):
                 flash('Please verify your email address before logging in. Use the link displayed after registration or request a new one.', 'warning')
@@ -142,14 +161,33 @@ def login():
 @auth_bp.route('/logout')
 @login_required
 def logout():
-    """User logout"""
+    """
+    User logout endpoint.
+    
+    Clears the current user session via Flask-Login and redirects to homepage.
+    Requires authentication to prevent CSRF attacks on logout actions.
+    
+    Returns:
+        Response: Redirect to homepage with logout confirmation message
+    """
     logout_user()
     flash('You have been logged out', 'info')
     return redirect(url_for('index'))
 
 @auth_bp.route('/verify-email/<token>')
 def verify_email(token):
-    """Verify user email with token"""
+    """
+    Email verification endpoint via secure token.
+    
+    Verifies user email addresses using cryptographically secure tokens sent
+    via email. Tokens are single-use and time-limited for security.
+    
+    Args:
+        token (str): Verification token from email link
+        
+    Returns:
+        Response: Redirect to login (success) or resend verification page (failure)
+    """
     if not token:
         flash('Invalid verification link', 'danger')
         return redirect(url_for('index'))
@@ -165,7 +203,16 @@ def verify_email(token):
 
 @auth_bp.route('/resend-verification', methods=['GET', 'POST'])
 def resend_verification_form():
-    """Resend verification email form"""
+    """
+    Resend email verification link endpoint.
+    
+    Allows users to request a new verification token if the original link
+    expired or was lost. Security: doesn't reveal whether email exists to
+    prevent user enumeration attacks.
+    
+    Returns:
+        Response: Resend verification form (GET) or verification link display (POST)
+    """
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
 
@@ -179,8 +226,9 @@ def resend_verification_form():
 
         user = UserDAL.get_user_by_email(email)
 
+        # Security: Don't reveal if email exists or not to prevent user enumeration
         if not user:
-            # Don't reveal if email exists or not for security
+            # Generic message regardless of whether user exists
             flash('If an account exists with this email, a verification link has been sent.', 'info')
             return render_template('auth/resend_verification.html')
 

@@ -3,7 +3,7 @@ Email Verification Utility
 Handles generation and validation of email verification tokens
 """
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from flask import url_for
 
 
@@ -21,7 +21,7 @@ class EmailVerificationService:
     @staticmethod
     def get_token_expiry():
         """Get the expiry datetime for a new token"""
-        return datetime.utcnow() + timedelta(hours=EmailVerificationService.TOKEN_EXPIRY_HOURS)
+        return datetime.now(timezone.utc) + timedelta(hours=EmailVerificationService.TOKEN_EXPIRY_HOURS)
 
     @staticmethod
     def build_verification_url(token, absolute=False):
@@ -49,4 +49,4 @@ class EmailVerificationService:
             except (ValueError, AttributeError):
                 return False
 
-        return datetime.utcnow() < token_expiry
+        return datetime.now(timezone.utc) < token_expiry

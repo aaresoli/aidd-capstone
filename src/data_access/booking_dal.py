@@ -18,7 +18,23 @@ class BookingDAL:
     
     @staticmethod
     def create_booking(resource_id, requester_id, start_datetime, end_datetime, status='pending', recurrence_rule=None):
-        """Create a new booking"""
+        """
+        Create a new booking record in the database.
+        
+        All datetime values are normalized to ISO 8601 strings (UTC) for storage.
+        The booking is created with the specified status (typically 'pending' or 'approved').
+        
+        Args:
+            resource_id (int): ID of the resource being booked
+            requester_id (int): ID of the user making the booking
+            start_datetime (datetime): Booking start time (converted to UTC)
+            end_datetime (datetime): Booking end time (converted to UTC)
+            status (str): Initial booking status (default: 'pending')
+            recurrence_rule (str, optional): iCal recurrence rule if recurring booking
+            
+        Returns:
+            Booking: Created booking model instance or None on failure
+        """
         start_value = BookingDAL._normalize_datetime(start_datetime)
         end_value = BookingDAL._normalize_datetime(end_datetime)
         with get_db() as conn:
@@ -65,9 +81,33 @@ class BookingDAL:
     
     @staticmethod
     def check_booking_conflict(resource_id, start_datetime, end_datetime, exclude_booking_id=None):
-        """Check if a booking conflicts with existing approved bookings"""
+        """
+        Check if a proposed booking time conflicts with existing bookings.
+        
+        Detects any time overlap between the proposed booking and existing
+        pending/approved bookings for the same resource. Used to prevent
+        double-booking and validate availability before creating bookings.
+        
+        Conflict detection logic:
+        - Overlap occurs if: proposed_start < existing_end AND proposed_end > existing_start
+        - Includes bookings that completely contain or are contained by the proposed time
+        
+        Args:
+            resource_id (int): ID of the resource to check
+            start_datetime (datetime): Proposed booking start time (UTC)
+            end_datetime (datetime): Proposed booking end time (UTC)
+            exclude_booking_id (int, optional): Booking ID to exclude from conflict check
+                                               (useful when updating existing bookings)
+        
+        Returns:
+            bool: True if conflict exists, False otherwise
+        """
         start_value = BookingDAL._normalize_datetime(start_datetime)
         end_value = BookingDAL._normalize_datetime(end_datetime)
+        # SQL query checks for three overlap scenarios:
+        # 1. Proposed booking starts before existing ends AND ends after existing starts
+        # 2. Proposed booking starts within existing booking
+        # 3. Proposed booking completely contains existing booking
         query = '''
             SELECT COUNT(*) as conflict_count
             FROM bookings
@@ -214,11 +254,28 @@ class BookingDAL:
 
     @staticmethod
     def update_booking_status(booking_id, status, decision_notes=None, decision_by=None):
-        """Update booking status and optionally capture reviewer context."""
+        """
+        Update booking status with optional reviewer metadata.
+        
+        Changes booking status (e.g., 'pending' -> 'approved'/'rejected') and
+        optionally records who made the decision and when. This provides an
+        audit trail for booking decisions, especially important for restricted
+        resources requiring manual approval.
+        
+        Args:
+            booking_id (int): ID of the booking to update
+            status (str): New status ('approved', 'rejected', 'cancelled', 'completed', etc.)
+            decision_notes (str, optional): Notes explaining the decision
+            decision_by (int, optional): User ID of the person making the decision
+            
+        Returns:
+            bool: True if booking was updated, False if booking_id not found
+        """
         set_clauses = ['status = ?', 'updated_at = CURRENT_TIMESTAMP']
         params = [status]
         update_decision_time = False
 
+        # Track decision metadata for audit purposes
         if decision_notes is not None:
             set_clauses.append('decision_notes = ?')
             params.append(decision_notes)
@@ -229,6 +286,7 @@ class BookingDAL:
             params.append(decision_by)
             update_decision_time = True
 
+        # Set decision timestamp when reviewer information is provided
         if update_decision_time:
             set_clauses.append('decision_timestamp = CURRENT_TIMESTAMP')
 

@@ -19,7 +19,27 @@ class Validator:
     
     @staticmethod
     def validate_password(password):
-        """Validate password strength (min 8 chars, 1 upper, 1 lower, 1 digit)"""
+        """
+        Validate password strength against security requirements.
+        
+        Enforces strong password policy:
+        - Minimum 8 characters
+        - At least one uppercase letter
+        - At least one lowercase letter
+        - At least one digit
+        
+        These requirements help prevent brute-force attacks while remaining
+        reasonably user-friendly. Consider adding special character requirement
+        for even stronger passwords if security is critical.
+        
+        Args:
+            password (str): Password string to validate
+            
+        Returns:
+            tuple: (is_valid: bool, message: str)
+                - (True, "Valid") if password meets requirements
+                - (False, error_message) if validation fails
+        """
         if not password or len(password) < 8:
             return False, "Password must be at least 8 characters long"
         if not re.search(r'[A-Z]', password):
@@ -171,18 +191,31 @@ class Validator:
     def sanitize_html(text):
         """
         Production-grade HTML sanitization using bleach library.
-        Removes all HTML tags and attributes for maximum security.
+        
+        Removes ALL HTML tags and attributes from user input to prevent XSS
+        (Cross-Site Scripting) attacks. This is the safest approach for
+        user-generated content that will be displayed to other users.
+        
+        Use sanitize_html_basic() if you need to preserve some formatting
+        (only use when necessary and with caution).
+        
+        Args:
+            text (str): Potentially unsafe HTML/text content from user
+            
+        Returns:
+            str: Completely sanitized plain text with no HTML
         """
         if not text:
             return ""
 
         # Use bleach to strip all HTML tags and attributes
-        # This is the safest approach for user-generated content
+        # tags=[] means no HTML is allowed - maximum security
+        # strip=True removes tags entirely rather than escaping them
         cleaned = bleach.clean(
             text,
-            tags=[],  # Allow no HTML tags
-            attributes={},  # Allow no attributes
-            strip=True  # Remove tags instead of escaping them
+            tags=[],  # Allow no HTML tags - zero-trust approach
+            attributes={},  # Allow no attributes - no vectors for XSS
+            strip=True  # Remove tags instead of escaping (cleaner output)
         )
 
         return cleaned.strip()

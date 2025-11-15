@@ -5,7 +5,7 @@ Handles administrative functions and dashboard
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timezone
 from src.data_access.user_dal import UserDAL
 from src.data_access.resource_dal import ResourceDAL
 from src.data_access.booking_dal import BookingDAL
@@ -118,7 +118,7 @@ def dashboard():
     draft_resources = [resource for resource in all_resources if resource.status == 'draft']
 
     def month_sequence(window=6):
-        base = datetime.utcnow().replace(day=1)
+        base = datetime.now(timezone.utc).replace(day=1)
         keys = []
         for offset in range(window - 1, -1, -1):
             year = base.year

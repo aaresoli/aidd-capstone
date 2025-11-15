@@ -11,30 +11,37 @@ load_dotenv(ENV_PATH)
 
 
 class Config:
-    """Application configuration"""
+    """
+    Application configuration class.
     
-    # Secret key for session management and CSRF
+    Centralizes all configuration settings loaded from environment variables
+    or defaults. Sensitive values (API keys, secrets) should be set via
+    environment variables, not hardcoded.
+    """
+    
+    # Secret key for session management and CSRF protection
+    # MUST be changed in production - used to sign session cookies and CSRF tokens
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     
     # Database configuration
-    BASE_DIR = BASE_DIR
-    DATABASE_PATH = os.path.join(BASE_DIR, '..', 'campus_hub.db')
+    BASE_DIR = BASE_DIR  # Project root directory
+    DATABASE_PATH = os.path.join(BASE_DIR, '..', 'campus_hub.db')  # SQLite database file
 
     # File upload configuration
-    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
-    MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB max file size
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')  # Where uploaded files are stored
+    MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB max file size (prevents DoS via large uploads)
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}  # Allowed image file extensions
     
     # Session configuration
-    PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
-    # Auto-detect production environment for secure cookies
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=24)  # Session expires after 24 hours
+    # Auto-detect production environment for secure cookies (HTTPS only in production)
     SESSION_COOKIE_SECURE = os.environ.get('FLASK_ENV') == 'production'
-    SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to cookies (XSS protection)
+    SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection for cross-site requests
 
     # WTForms CSRF protection
-    WTF_CSRF_ENABLED = True
-    WTF_CSRF_TIME_LIMIT = None  # No time limit for CSRF tokens
+    WTF_CSRF_ENABLED = True  # Enable CSRF token validation on all forms
+    WTF_CSRF_TIME_LIMIT = None  # No time limit for CSRF tokens (valid until session expires)
 
     # Security headers
     SEND_FILE_MAX_AGE_DEFAULT = 31536000  # 1 year for static files
@@ -67,23 +74,25 @@ class Config:
     MAIL_TIMEOUT = int(os.environ.get('MAIL_TIMEOUT', 10))
 
     # Timezone configuration
-    # Bloomington, Indiana is in Eastern Time Zone
+    # Bloomington, Indiana is in Eastern Time Zone (America/Indiana/Indianapolis)
+    # All database times are stored in UTC; this timezone is used for display
     TIMEZONE = os.environ.get('TIMEZONE', 'America/Indiana/Indianapolis')
 
-    # Calendar integrations
-    GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
-    GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
+    # Google Calendar integration (OAuth 2.0)
+    GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')  # Google OAuth client ID
+    GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')  # Google OAuth client secret
     GOOGLE_OAUTH_REDIRECT_PATH = os.environ.get('GOOGLE_OAUTH_REDIRECT_PATH', '/calendar/google/callback')
-    EXTERNAL_BASE_URL = os.environ.get('EXTERNAL_BASE_URL')
-    GOOGLE_CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.events']
+    EXTERNAL_BASE_URL = os.environ.get('EXTERNAL_BASE_URL')  # Public URL for OAuth redirect
+    GOOGLE_CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.events']  # Required permissions
     CALENDAR_DEFAULT_TIMEZONE = os.environ.get('CALENDAR_DEFAULT_TIMEZONE', 'America/Indiana/Indianapolis')
 
-    # Local LLM settings (Ollama, LM Studio, etc.)
-    LOCAL_LLM_BASE_URL = os.environ.get('LOCAL_LLM_BASE_URL')
-    LOCAL_LLM_MODEL = os.environ.get('LOCAL_LLM_MODEL', 'llama3.1')
-    LOCAL_LLM_PROVIDER = os.environ.get('LOCAL_LLM_PROVIDER', 'ollama')
-    LOCAL_LLM_API_KEY = os.environ.get('LOCAL_LLM_API_KEY')
-    LOCAL_LLM_TIMEOUT = int(os.environ.get('LOCAL_LLM_TIMEOUT', 30))
+    # Local LLM settings (for AI Resource Concierge feature)
+    # Supports Ollama, LM Studio, or any OpenAI-compatible API
+    LOCAL_LLM_BASE_URL = os.environ.get('LOCAL_LLM_BASE_URL')  # Base URL for LLM API
+    LOCAL_LLM_MODEL = os.environ.get('LOCAL_LLM_MODEL', 'llama3.1')  # Model name
+    LOCAL_LLM_PROVIDER = os.environ.get('LOCAL_LLM_PROVIDER', 'ollama')  # Provider type
+    LOCAL_LLM_API_KEY = os.environ.get('LOCAL_LLM_API_KEY')  # Optional API key
+    LOCAL_LLM_TIMEOUT = int(os.environ.get('LOCAL_LLM_TIMEOUT', 30))  # Request timeout (seconds)
 
-    # Concierge inputs
+    # Concierge context directory (markdown files for AI context)
     CONCIERGE_CONTEXT_DIR = os.environ.get('CONCIERGE_CONTEXT_DIR')

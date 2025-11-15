@@ -7,26 +7,45 @@ from datetime import datetime
 from flask_login import UserMixin
 
 class User(UserMixin):
-    """User model representing students, staff, and admins"""
+    """
+    User model representing students, staff, and administrators.
+    
+    Implements Flask-Login's UserMixin interface for session management.
+    All users can create and manage resources; staff/admins have additional
+    permissions for approving bookings on restricted resources.
+    
+    Roles:
+    - 'student': Can browse and book resources
+    - 'staff': Can approve bookings for their own resources
+    - 'admin': Full system access including user management
+    """
     def __init__(self, user_id=None, name=None, email=None, password_hash=None,
                  role='student', profile_image=None, department=None, created_at=None,
                  is_suspended=0, email_verified=0, verification_token=None,
                  verification_token_expiry=None):
         self.user_id = user_id
         self.name = name
-        self.email = email
-        self.password_hash = password_hash
+        self.email = email  # Must be unique, used for login
+        self.password_hash = password_hash  # Bcrypt-hashed password (never plaintext)
         self.role = role  # 'student', 'staff', 'admin'
-        self.profile_image = profile_image
-        self.department = department
+        self.profile_image = profile_image  # Path to uploaded profile image
+        self.department = department  # Optional department/affiliation
         self.created_at = created_at or datetime.now()
-        self.is_suspended = bool(is_suspended)
-        self.email_verified = bool(email_verified)
-        self.verification_token = verification_token
-        self.verification_token_expiry = verification_token_expiry
+        self.is_suspended = bool(is_suspended)  # Account suspension flag
+        self.email_verified = bool(email_verified)  # Email verification status
+        self.verification_token = verification_token  # Cryptographically secure token
+        self.verification_token_expiry = verification_token_expiry  # Token expiration time
     
     def get_id(self):
-        """Return the user identifier used by Flask-Login"""
+        """
+        Return the user identifier used by Flask-Login.
+        
+        Required by UserMixin interface. Flask-Login uses this to store
+        user ID in the session cookie.
+        
+        Returns:
+            str: String representation of user_id
+        """
         return str(self.user_id)
     
     def to_dict(self):
@@ -47,7 +66,18 @@ class User(UserMixin):
 
 
 class Resource:
-    """Resource model for campus resources"""
+    """
+    Resource model for campus resources (rooms, equipment, spaces).
+    
+    Represents any bookable campus resource with availability rules, booking
+    constraints, and lifecycle status. Resources can be restricted (requiring
+    approval) or unrestricted (auto-approved).
+    
+    Status values:
+    - 'draft': Not yet published, not visible to students
+    - 'published': Available for booking
+    - 'archived': No longer accepting new bookings
+    """
     def __init__(self, resource_id=None, owner_id=None, title=None, description=None,
                  category=None, location=None, capacity=None, images=None,
                  equipment=None, availability_rules=None, is_restricted=0,
@@ -56,25 +86,27 @@ class Resource:
                  booking_increment_minutes=None, buffer_minutes=None,
                  advance_booking_days=None, min_lead_time_hours=None):
         self.resource_id = resource_id
-        self.owner_id = owner_id
+        self.owner_id = owner_id  # User ID of resource owner (can approve bookings)
         self.title = title
         self.description = description
-        self.category = category
-        self.location = location
-        self.capacity = capacity
-        self.images = images  # Comma-separated paths
-        self.equipment = equipment  # Optional equipment list
-        self.availability_rules = availability_rules  # JSON string
-        self.is_restricted = bool(is_restricted)
+        self.category = category  # 'Study Room', 'Lab Equipment', 'Event Space', etc.
+        self.location = location  # Physical location on campus
+        self.capacity = capacity  # Maximum occupancy (if applicable)
+        self.images = images  # Comma-separated file paths for uploaded images
+        self.equipment = equipment  # Optional equipment list/description
+        self.availability_rules = availability_rules  # JSON string with custom rules
+        self.is_restricted = bool(is_restricted)  # If True, bookings require manual approval
         self.status = status  # 'draft', 'published', 'archived'
         self.created_at = created_at or datetime.now()
-        self.availability_schedule = availability_schedule  # JSON weekly schedule
-        self.min_booking_minutes = min_booking_minutes
-        self.max_booking_minutes = max_booking_minutes
-        self.booking_increment_minutes = booking_increment_minutes
-        self.buffer_minutes = buffer_minutes
-        self.advance_booking_days = advance_booking_days
-        self.min_lead_time_hours = min_lead_time_hours
+        # Weekly availability schedule as JSON: {day: [{"start": "HH:MM", "end": "HH:MM"}]}
+        self.availability_schedule = availability_schedule
+        # Booking constraints
+        self.min_booking_minutes = min_booking_minutes  # Minimum booking duration
+        self.max_booking_minutes = max_booking_minutes  # Maximum booking duration
+        self.booking_increment_minutes = booking_increment_minutes  # Time slot increments
+        self.buffer_minutes = buffer_minutes  # Required gap between bookings
+        self.advance_booking_days = advance_booking_days  # How far ahead bookings allowed
+        self.min_lead_time_hours = min_lead_time_hours  # Minimum notice required
     
     def to_dict(self):
         """Convert resource to dictionary"""
@@ -103,25 +135,42 @@ class Resource:
 
 
 class Booking:
-    """Booking model for resource reservations"""
+    """
+    Booking model for resource reservations.
+    
+    Represents a time slot reservation for a resource. Bookings go through
+    a lifecycle: created as 'pending' or 'approved' (depending on resource
+    restrictions), then moved to 'approved', 'rejected', 'completed', or 'cancelled'.
+    
+    Status lifecycle:
+    - 'pending': Awaiting owner approval (restricted resources only)
+    - 'approved': Confirmed and active
+    - 'rejected': Declined by owner
+    - 'cancelled': Cancelled by requester or owner
+    - 'completed': Finished (allows reviews to be posted)
+    
+    Datetime fields (start_datetime, end_datetime) are stored in UTC.
+    """
     def __init__(self, booking_id=None, resource_id=None, requester_id=None,
                  start_datetime=None, end_datetime=None, status='pending',
                  recurrence_rule=None, created_at=None, updated_at=None,
                  decision_notes=None, decision_by=None, decision_timestamp=None,
                  requester_name=None):
         self.booking_id = booking_id
-        self.resource_id = resource_id
-        self.requester_id = requester_id
-        self.start_datetime = start_datetime
-        self.end_datetime = end_datetime
+        self.resource_id = resource_id  # Resource being booked
+        self.requester_id = requester_id  # User making the booking
+        self.start_datetime = start_datetime  # UTC datetime string
+        self.end_datetime = end_datetime  # UTC datetime string
         self.status = status  # 'pending', 'approved', 'rejected', 'cancelled', 'completed'
-        self.recurrence_rule = recurrence_rule
+        self.recurrence_rule = recurrence_rule  # iCal recurrence rule (e.g., "FREQ=WEEKLY;COUNT=3")
         self.created_at = created_at or datetime.now()
         self.updated_at = updated_at or datetime.now()
-        self.decision_notes = decision_notes
-        self.decision_by = decision_by
-        self.decision_timestamp = decision_timestamp
-        self.requester_name = requester_name  # Populated via JOIN, not stored in DB
+        # Decision metadata (for audit trail on restricted resources)
+        self.decision_notes = decision_notes  # Notes explaining approval/rejection
+        self.decision_by = decision_by  # User ID of person who approved/rejected
+        self.decision_timestamp = decision_timestamp  # When decision was made
+        # Computed field (not in database, populated via SQL JOIN)
+        self.requester_name = requester_name
     
     def to_dict(self):
         """Convert booking to dictionary"""
