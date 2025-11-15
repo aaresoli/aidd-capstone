@@ -21,7 +21,7 @@ if PROJECT_ROOT not in sys.path:
 from flask import Flask, render_template, redirect, url_for, flash
 from flask_login import LoginManager, current_user, logout_user
 from flask_wtf import CSRFProtect
-from datetime import datetime
+from datetime import datetime, timezone
 from src.config import Config
 from src.data_access import init_database
 from src.data_access.user_dal import UserDAL
@@ -382,7 +382,7 @@ def create_app():
         Returns:
             datetime: Timezone-aware datetime in local timezone, or None if invalid
         """
-        from zoneinfo import ZoneInfo
+        from src.utils.datetime_helpers import get_timezone
         
         if isinstance(value, datetime):
             dt = value
@@ -398,10 +398,10 @@ def create_app():
         
         # If datetime is naive (no timezone), assume it's UTC (from database)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=ZoneInfo('UTC'))
+            dt = dt.replace(tzinfo=timezone.utc)
         
         # Convert to local timezone for display
-        local_tz = ZoneInfo(Config.TIMEZONE)
+        local_tz = get_timezone(Config.TIMEZONE)
         dt_local = dt.astimezone(local_tz)
         
         return dt_local
@@ -439,14 +439,14 @@ def create_app():
         Returns:
             str: Relative time string (e.g., "Just now", "2h ago", "Yesterday", "Jan 15, 2024")
         """
-        from zoneinfo import ZoneInfo
+        from src.utils.datetime_helpers import get_timezone
         
         dt_val = _parse_datetime(value)
         if dt_val is None:
             return ''
         
         # Get current time in local timezone for accurate delta calculation
-        now = datetime.now(ZoneInfo(Config.TIMEZONE))
+        now = datetime.now(get_timezone(Config.TIMEZONE))
         delta = now - dt_val
         seconds = delta.total_seconds()
         

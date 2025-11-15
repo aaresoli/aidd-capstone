@@ -142,15 +142,16 @@ def validate_booking_times(
     Returns: (is_valid, error_message)
     """
     # Use UTC time (naive) for internal calculations since all DB times are UTC
-    from zoneinfo import ZoneInfo
+    from datetime import timezone
     from src.config import Config
-    now = datetime.now(ZoneInfo('UTC')).replace(tzinfo=None)
+    from src.utils.datetime_helpers import get_timezone
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     
     # Convert UTC times to local timezone for schedule comparison
     # Schedule times are stored in local timezone format
-    local_tz = ZoneInfo(Config.TIMEZONE)
-    start_dt_local = start_dt.replace(tzinfo=ZoneInfo('UTC')).astimezone(local_tz).replace(tzinfo=None)
-    end_dt_local = end_dt.replace(tzinfo=ZoneInfo('UTC')).astimezone(local_tz).replace(tzinfo=None)
+    local_tz = get_timezone(Config.TIMEZONE)
+    start_dt_local = start_dt.replace(tzinfo=timezone.utc).astimezone(local_tz).replace(tzinfo=None)
+    end_dt_local = end_dt.replace(tzinfo=timezone.utc).astimezone(local_tz).replace(tzinfo=None)
 
     # Check duration
     duration = (end_dt - start_dt).total_seconds() / 60
@@ -246,8 +247,8 @@ def get_next_available_slot(
 
     # Start from now
     # Use UTC time (naive) for internal calculations since all DB times are UTC
-    from zoneinfo import ZoneInfo
-    now = datetime.now(ZoneInfo('UTC')).replace(tzinfo=None)
+    from datetime import timezone
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     if start_from is None:
         start_from = now
 

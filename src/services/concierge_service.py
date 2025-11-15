@@ -13,8 +13,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from flask import current_app, has_app_context
 
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import datetime, timedelta, timezone
 
 from src.config import Config
 from src.data_access import get_db
@@ -564,8 +563,9 @@ class ConciergeService:
         
         # Check current availability
         # Use UTC for database comparisons, but convert to local for schedule checks
-        now_utc = datetime.now(ZoneInfo('UTC')).replace(tzinfo=None)
-        local_tz = ZoneInfo(Config.TIMEZONE)
+        from src.utils.datetime_helpers import get_timezone
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        local_tz = get_timezone(Config.TIMEZONE)
         now_local = datetime.now(local_tz).replace(tzinfo=None)
         
         # Get all active bookings for this resource
@@ -650,8 +650,9 @@ class ConciergeService:
             return None
         
         # Use UTC for database comparisons
-        now_utc = datetime.now(ZoneInfo('UTC')).replace(tzinfo=None)
-        local_tz = ZoneInfo(Config.TIMEZONE)
+        from src.utils.datetime_helpers import get_timezone
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        local_tz = get_timezone(Config.TIMEZONE)
         now_local = datetime.now(local_tz).replace(tzinfo=None)
         
         # Get resource booking parameters
@@ -691,12 +692,12 @@ class ConciergeService:
     
     def _format_datetime(self, dt: datetime) -> str:
         """Format datetime for display in availability responses."""
-        from zoneinfo import ZoneInfo
-        local_tz = ZoneInfo(Config.TIMEZONE)
+        from src.utils.datetime_helpers import get_timezone
+        local_tz = get_timezone(Config.TIMEZONE)
         
         # Convert UTC to local time
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=ZoneInfo('UTC'))
+            dt = dt.replace(tzinfo=timezone.utc)
         dt_local = dt.astimezone(local_tz).replace(tzinfo=None)
         
         now_local = datetime.now(local_tz).replace(tzinfo=None)

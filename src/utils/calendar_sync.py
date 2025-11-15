@@ -6,7 +6,6 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from typing import Dict, Optional, Tuple
-from zoneinfo import ZoneInfo
 
 try:
     from google.oauth2.credentials import Credentials
@@ -27,7 +26,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - exercised when deps mis
     GOOGLE_LIB_ERROR = exc
 
 from src.config import Config
-from src.utils.datetime_helpers import parse_datetime
+from src.utils.datetime_helpers import parse_datetime, get_timezone
 
 
 GOOGLE_PROVIDER = 'google'
@@ -60,12 +59,12 @@ def _localize(dt_value, tz_name: str):
     if not dt_obj:
         return None
     
-    target_tz = ZoneInfo(tz_name)
+    target_tz = get_timezone(tz_name)
     
     # If datetime is naive, assume it's UTC (as per database storage convention)
     if dt_obj.tzinfo is None:
         # Attach UTC timezone, then convert to target timezone
-        dt_utc = dt_obj.replace(tzinfo=ZoneInfo('UTC'))
+        dt_utc = dt_obj.replace(tzinfo=timezone.utc)
         return dt_utc.astimezone(target_tz)
     else:
         # Already timezone-aware, convert to target timezone

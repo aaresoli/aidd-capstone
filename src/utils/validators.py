@@ -78,19 +78,20 @@ class Validator:
     def validate_datetime(datetime_str, field_name="Date/Time"):
         """Validate datetime string and convert from local timezone to UTC"""
         try:
-            from zoneinfo import ZoneInfo
+            from datetime import timezone
             from src.config import Config
+            from src.utils.datetime_helpers import get_timezone
 
             # Parse the datetime string (from datetime-local input)
             dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
 
             # If datetime is naive (no timezone info from form), assume it's in local timezone
             if dt.tzinfo is None:
-                local_tz = ZoneInfo(Config.TIMEZONE)
+                local_tz = get_timezone(Config.TIMEZONE)
                 dt = dt.replace(tzinfo=local_tz)
 
             # Convert to UTC and make naive for database storage
-            utc_dt = dt.astimezone(ZoneInfo('UTC')).replace(tzinfo=None)
+            utc_dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
             return True, utc_dt
         except (ValueError, AttributeError):
             return False, f"{field_name} must be a valid date and time"
@@ -109,12 +110,11 @@ class Validator:
         Returns:
             Tuple (is_valid, error_message)
         """
-        from datetime import datetime, timedelta
-        from zoneinfo import ZoneInfo
+        from datetime import datetime, timedelta, timezone
         from src.config import Config
 
         # Get current time in UTC (naive) for comparison with database times
-        now = datetime.now(ZoneInfo('UTC')).replace(tzinfo=None)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Check end is after start
         if end_dt <= start_dt:

@@ -30,8 +30,9 @@ def admin_required(f):
 
 def format_datetime(value):
     """Format datetime or ISO strings for admin tables in Bloomington, IN timezone"""
-    from zoneinfo import ZoneInfo
+    from datetime import timezone
     from src.config import Config
+    from src.utils.datetime_helpers import get_timezone
     
     if isinstance(value, datetime):
         dt_obj = value
@@ -43,10 +44,10 @@ def format_datetime(value):
     
     # If datetime is naive (from database), assume it's UTC
     if dt_obj.tzinfo is None:
-        dt_obj = dt_obj.replace(tzinfo=ZoneInfo('UTC'))
+        dt_obj = dt_obj.replace(tzinfo=timezone.utc)
     
     # Convert to Bloomington, IN timezone for display
-    local_tz = ZoneInfo(Config.TIMEZONE)
+    local_tz = get_timezone(Config.TIMEZONE)
     dt_local = dt_obj.astimezone(local_tz)
     
     return dt_local.strftime('%b %d, %Y %I:%M %p')
@@ -62,8 +63,9 @@ def parse_datetime(value, convert_to_local=False):
     Returns:
         datetime object (naive UTC by default, or timezone-aware local if convert_to_local=True)
     """
-    from zoneinfo import ZoneInfo
+    from datetime import timezone
     from src.config import Config
+    from src.utils.datetime_helpers import get_timezone
     
     if isinstance(value, datetime):
         dt = value
@@ -78,10 +80,10 @@ def parse_datetime(value, convert_to_local=False):
     if convert_to_local:
         # If naive, assume it's UTC
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=ZoneInfo('UTC'))
+            dt = dt.replace(tzinfo=timezone.utc)
         
         # Convert to Bloomington timezone
-        local_tz = ZoneInfo(Config.TIMEZONE)
+        local_tz = get_timezone(Config.TIMEZONE)
         return dt.astimezone(local_tz)
     
     return dt
@@ -204,8 +206,8 @@ def dashboard():
     draft_share_pct = (status_counts['draft'] / stats['total_resources']) * 100 if stats['total_resources'] else 0
 
     # Get current time in UTC (naive) for comparison with database times
-    from zoneinfo import ZoneInfo
-    now = datetime.now(ZoneInfo('UTC')).replace(tzinfo=None)
+    from datetime import timezone
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     pending_dates = []
     for booking in pending_bookings:
         created_value = parse_datetime(getattr(booking, 'created_at', None))
