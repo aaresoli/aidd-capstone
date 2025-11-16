@@ -57,6 +57,9 @@ def create_app():
     Returns:
         Flask: Configured Flask application instance ready to run
     """
+    # Import datetime and timezone locally to ensure they're available in closure scope
+    from datetime import datetime, timezone
+    
     # Use absolute paths for static and template folders to avoid path resolution issues
     static_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), 'static'))
     template_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), 'views'))

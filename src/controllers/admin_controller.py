@@ -206,7 +206,6 @@ def dashboard():
     draft_share_pct = (status_counts['draft'] / stats['total_resources']) * 100 if stats['total_resources'] else 0
 
     # Get current time in UTC (naive) for comparison with database times
-    from datetime import timezone
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     pending_dates = []
     for booking in pending_bookings:
